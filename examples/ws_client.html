@@ -1,0 +1,33 @@
+<!--
+Google BSD license http://code.google.com/google_bsd_license.html
+Copyright 2012 Google Inc. wrightt@google.com
+
+A minimal WebSocket client.
+-->
+<html><head><script type="text/javascript">
+function WebSocketTest() {
+  if ("WebSocket" in window) {
+    var ws = new WebSocket("ws://localhost:8080/");
+    var count = 3;
+    ws.onopen = function() {
+      alert("Sending "+count);
+      ws.send("count["+count+"]");
+    };
+    ws.onmessage = function (evt) {
+      alert("Received ("+evt.data+"), sending "+
+           (count > 1 ? (count-1) : "close"));
+      if (count > 1) {
+        ws.send("count["+(--count)+"]");
+      } else {
+        ws.close();
+      }
+    };
+    ws.onclose = function() { alert("Closed"); };
+    ws.onerror = function(e) { alert("Error: "+e.data); };
+  } else {
+    alert("WebSocket NOT supported by your Browser!");
+  }
+}
+</script></head><body><div id="sse">
+  <a href="javascript:WebSocketTest()">Run WebSocket Test</a>
+</div></body></html>

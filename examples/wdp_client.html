@@ -1,0 +1,104 @@
+<!--
+Google BSD license http://code.google.com/google_bsd_license.html
+Copyright 2012 Google Inc. wrightt@google.com
+
+An example browser-based client.
+-->
+<html><head><script type="text/javascript">
+function onSubmit() {
+  if (!("WebSocket" in window)) {
+    alert("Your browser doesn't support WebSockets!");
+    return;
+  }
+  ol_clear("send_ol");
+  ol_clear("recv_ol");
+
+  var form = document.getElementById('f');
+  var port = form.elements["port"].value;
+  var page_num = form.elements["page_num"].value;
+  var url = "ws://localhost:"+port+"/devtools/page/"+page_num;
+
+  var text = document.getElementById('commands');
+  var lines = text.value.split("\n");
+  var commands = [];
+  for (var i = 0; i < lines.length; i++) {
+    line = lines[i].trim();
+    if (line && line.charAt(0) != '#') {
+      commands.push(line);
+    }
+  }
+
+  var count = 0;
+  ol_append("send_ol", "open "+url);
+  var ws = new WebSocket(url);
+
+  function send_next_command(in_msg) {
+    ol_append("recv_ol", in_msg);
+    if (count < commands.length) {
+      out_msg = commands[count++];
+      ol_append("send_ol", out_msg);
+      ws.send(out_msg);
+    } else if (count == commands.length) {
+      count++;
+      ol_append("send_ol", "close");
+      ws.close();
+    }
+  };
+
+  ws.onopen = function() {
+    send_next_command("opened "+url);
+  };
+  ws.onmessage = function(evt) {
+    send_next_command(evt.data);
+  };
+  ws.onclose = function() {
+    ol_append("recv_ol", "closed");
+  };
+  ws.onerror = function(e) {
+    ol_append("recv_ol", "error: "+e.data);
+  };
+}
+
+function ol_clear(id) {
+  var o_ol = document.getElementById(id);
+  while (o_ol.hasChildNodes()) {
+    o_ol.removeChild(o_ol.lastChild);
+  }
+}
+
+function ol_append(id, text) {
+  var o_ol = document.getElementById(id);
+  var o_li = document.createElement("li");
+  o_li.appendChild(document.createTextNode(text));
+  o_ol.appendChild(o_li);
+}
+</script>
+<style type="text/css">
+.top {
+    vertical-align:top;
+}
+.right {
+    text-align:right;
+}
+</style>
+</head><body>
+<form id="f">
+Inspect localhost:
+<input name="port" size="3" class="right" value="9222"
+/><sup><a href="http://localhost:9221" target="_new">?</a></sup
+>/devtools/page/<input name="page_num" class="right" size="5" value="1"
+/><sup><a href="http://localhost:9222" target="_new">?</a></sup>
+<input type="button" onclick="onSubmit()" value="run"/><p>
+<textarea id="commands" rows="5" cols="80">
+{"id":1,"method":"Page.navigate","params": {"url":"http://www.google.com/"}}
+</textarea>
+</form>
+<table>
+<tr><td width="50%" class="top">
+<form onSubmit="return send();">
+<ol id="send_ol"></ol>
+<form>
+</td><td class="top">
+<ol id="recv_ol"></ol>
+</td>
+</body></html>
