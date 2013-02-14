@@ -9,7 +9,7 @@ The ios_webkit_debug_proxy allows HTTP-based [WebKit Remote Debugging Protocol c
 
 The proxy listens on <http://localhost:9221> for requests to list attached iOS devices, which are automatically assigned HTTP ports starting at 9222.  The user can click on a device's link (e.g. <http://localhost:9222>) to list that device's open tabs, then click on a tab link (e.g. <http://localhost:9222/devtools/page/1>) to inspect that tab in the browser's DevTools UI.
 
-Equivalent JSON-formatted APIs are provided for automated clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  An example client is provided in [examples/wdp_client.js]().
+Equivalent JSON-formatted APIs are provided for automated clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  An example client is provided in [examples/wdp_client.js](examples/wdp_client.js).
 
 
 Requirements
@@ -97,31 +97,31 @@ To read lines from a config file, use "-c FILENAME".
 Source
 ------
 
-- [src/ios_webkit_debug_proxy_main.c]()   
+- [src/ios_webkit_debug_proxy_main.c](src/ios_webkit_debug_proxy_main.c)   
    \- The "main"   
 
-- [src/ios_webkit_debug_proxy.c]()    
+- [src/ios_webkit_debug_proxy.c](src/ios_webkit_debug_proxy.c)    
    \- WebInspector to WebKit Remote Debugging Protocol translator   
-   \- See [examples/wdp_client.js]() and [http://localhost:9221]()   
+   \- See [examples/wdp_client.js](examples/wdp_client.js) and <http://localhost:9221>   
 
-- [src/webinspector.c]()   
+- [src/webinspector.c](src/webinspector.c)   
    \- iOS WebInspector library   
-   \- See [examples/wi_script.c]()   
+   \- See [examples/wi_script.c](examples/wi_script.c)   
 
-- [src/device_listener.c]()   
+- [src/device_listener.c](src/device_listener.c)   
    \- iOS device add/remove listener   
-   \- See [examples/dl_client.c]()   
+   \- See [examples/dl_client.c](examples/dl_client.c)   
 
-- [src/websocket.c]()   
+- [src/websocket.c](src/websocket.c)   
    \- A generic WebSocket library   
    \- Uses base64.c and sha1.c from [PolarSSL](http://www.polarssl.org)   
-   \- See [examples/ws_echo1.c]() and [examples/ws_echo2.c]()   
+   \- See [examples/ws_echo1.c](examples/ws_echo1.c) and [examples/ws_echo2.c](examples/ws_echo2.c)
 
 - Utilities:   
-   \- [src/char_buffer.c]() byte buffer   
-   \- [src/hash_table.c]() dictionary   
-   \- [src/port_config.c]() parses device_id:port config files   
-   \- [src/socket_manager.c]() select-based socket controller   
+   \- [src/char_buffer.c](src/char_buffer.c) byte buffer   
+   \- [src/hash_table.c](src/hash_table.c) dictionary   
+   \- [src/port_config.c](src/port_config.c) parses device_id:port config files   
+   \- [src/socket_manager.c](src/socket_manager.c) select-based socket controller   
 
 
 Design
@@ -163,7 +163,7 @@ plus a field for client use:
 
     void *state;
 
-For example, [examples/dl_client.c]() creates a listener and sets the missing callbacks:
+For example, [examples/dl_client.c](examples/dl_client.c) creates a listener and sets the missing callbacks:
 
     int fd = dl_connect();
     dl_t dl = dl_new(); // sets the "start" and "on_recv" functions
