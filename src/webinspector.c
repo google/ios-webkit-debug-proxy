@@ -56,6 +56,8 @@ wi_status wi_dict_get_optional_string(const plist_t node, const char *key,
     char **to_value);
 wi_status wi_dict_get_required_bool(const plist_t node, const char *key,
     bool *to_value);
+wi_status wi_dict_get_optional_bool(const plist_t node, const char *key,
+    bool *to_value);
 wi_status wi_dict_get_required_uint(const plist_t node, const char *key,
     uint32_t *to_value);
 wi_status wi_dict_get_required_data(const plist_t node, const char *key,
@@ -917,9 +919,9 @@ wi_status wi_parse_app(const plist_t node, wi_app_t *to_app) {
   if (!app ||
       wi_dict_get_required_string(node, "WIRApplicationIdentifierKey",
         &app->app_id) ||
-      wi_dict_get_required_string(node, "WIRApplicationNameKey",
+      wi_dict_get_optional_string(node, "WIRApplicationNameKey",
         &app->app_name) ||
-      wi_dict_get_required_bool(node, "WIRIsApplicationProxyKey",
+      wi_dict_get_optional_bool(node, "WIRIsApplicationProxyKey",
         &app->is_proxy)) {
     wi_free_app(app);
     if (to_app) {
@@ -1131,6 +1133,15 @@ wi_status wi_dict_get_required_bool(const plist_t node, const char *key,
   plist_get_bool_val(item, &value);
   *to_value = (value ? true : false);
   return WI_SUCCESS;
+}
+
+wi_status wi_dict_get_optional_bool(const plist_t node, const char *key,
+    bool *to_value) {
+  if (!node || !key || !to_value) {
+    return WI_ERROR;
+  }
+  return (plist_dict_get_item(node, key) ?
+      wi_dict_get_required_bool(node, key, to_value) : WI_SUCCESS);
 }
 
 wi_status wi_dict_get_required_uint(const plist_t node, const char *key,
