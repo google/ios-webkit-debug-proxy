@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   int ret = iwdpm_configure(self, argc, argv);
   if (ret) {
     exit(ret > 0 ? ret : 0);
-    return;
+    return ret;
   }
 
   iwdpm_create_bridge(self);
