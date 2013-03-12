@@ -23,22 +23,25 @@ The proxy requires the following open-source packages:
    - [libusbmuxd](http://cgit.sukimashita.com/libusbmuxd.git)
    - [libimobiledevice](http://cgit.sukimashita.com/libimobiledevice.git)
 
-The above packages can also be installed using apt-get:
+Installation
+------------
+On a Mac you can use the optional [Homebrew](http://mxcl.github.com/homebrew/) script by [@janl](https://github.com/janl):
 
+      brew install -vv --env=std https://raw.github.com/janl/homebrew/bfa34701775b7cd5f2b81febf1a9e5573f132e4d/Library/Formula/ios-webkit-debug-proxy.rb
+
+On Linux use:
+
+      # get required packages
       sudo apt-get install libusb-dev libusb-1.0-0-dev
       sudo apt-get install libplist-dev libplist++-dev
       sudo apt-get install usbmuxd
+      
+      ./autogen.sh
+      ./configure           # for debug symbols, append 'CFLAGS=-g -O0'
+      make
+      sudo make install
 
-On Linux you must run the `usbmuxd` daemon.  The above install typically adds a udev rule to start the daemon whenever a device is attached.
-
-
-Installation
-------------
-     ./autogen.sh
-     ./configure           # for debug symbols, append 'CFLAGS=-g -O0'
-     make
-     sudo make install
-
+On Linux you must run the `usbmuxd` daemon.  The above install adds a udev rule to start the daemon whenever a device is attached.
 
 Usage
 -----
