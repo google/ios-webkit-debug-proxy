@@ -20,7 +20,7 @@ Linux and OS X are currently supported.  Windows support is planned but not impl
 The proxy requires the following open-source packages:
 
    - [libplist](http://cgit.sukimashita.com/libplist.git)
-   - [libusbmuxd](http://cgit.sukimashita.com/libusbmuxd.git)
+   - [libusbmuxd](http://cgit.sukimashita.com/usbmuxd.git/)
    - [libimobiledevice](http://cgit.sukimashita.com/libimobiledevice.git)
 
 Installation
