@@ -110,7 +110,7 @@ int wi_connect(const char *device_id, char **to_device_id,
 
   idevice_t phone = NULL;
   plist_t node = NULL;
-  uint16_t port = 0;
+  lockdownd_service_descriptor_t service = NULL;
   lockdownd_client_t client = NULL;
   idevice_connection_t connection = NULL;
   int fd = -1;
@@ -141,14 +141,14 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // start webinspector, get port
-  if (lockdownd_start_service(client, "com.apple.webinspector", &port) ||
-      !port) {
+  if (lockdownd_start_service(client, "com.apple.webinspector", &service) || 
+      !service->port) {
     perror("Could not start com.apple.webinspector!");
     goto leave_cleanup;
   }
 
   // connect to webinspector
-  if (idevice_connect(phone, port, &connection)) {
+  if (idevice_connect(phone, service->port, &connection)) {
     perror("idevice_connect failed!");
     goto leave_cleanup;
   }
