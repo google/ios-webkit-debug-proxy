@@ -19,23 +19,26 @@ Linux and OS X are currently supported.  Windows support is planned but not impl
 
 The proxy requires the following open-source packages:
 
-   - [libplist](http://cgit.sukimashita.com/libplist.git)
-   - [libusbmuxd](http://cgit.sukimashita.com/usbmuxd.git/)
-   - [libimobiledevice](http://cgit.sukimashita.com/libimobiledevice.git)
+   - [libplist 1.10](http://cgit.sukimashita.com/libplist.git)
+   - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
+   - [libimobiledevice 1.1.5](http://cgit.sukimashita.com/libimobiledevice.git)
 
 Installation
 ------------
-On a Mac you can use the optional [Homebrew](http://mxcl.github.com/homebrew/) script by [@janl](https://github.com/janl):
 
-      brew install -vv --env=std https://raw.github.com/janl/homebrew/bfa34701775b7cd5f2b81febf1a9e5573f132e4d/Library/Formula/ios-webkit-debug-proxy.rb
+On a Mac, use [brew](http://mxcl.github.com/homebrew/):
 
-On Linux use:
-
-      # get required packages
-      sudo apt-get install libusb-dev libusb-1.0-0-dev
-      sudo apt-get install libplist-dev libplist++-dev
-      sudo apt-get install usbmuxd
+      brew install ios-webkit-debug-proxy
       
+On Linux:
+
+      sudo apt-get install \
+          autoconf automake \
+          libusb-dev libusb-1.0-0-dev \
+          libplist-dev libplist++-dev \
+          usbmuxd \
+          libimobiledevice-dev
+
       ./autogen.sh
       ./configure           # for debug symbols, append 'CFLAGS=-g -O0'
       make
