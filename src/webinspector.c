@@ -27,6 +27,9 @@
 
 #define WI_DEBUG 1
 
+// TODO figure out exact value
+#define MAX_RPC_LEN 8096 - 500
+
 // some arbitrarly limit, to catch bad packets
 #define MAX_BODY_LENGTH 1<<20
 
@@ -282,40 +285,58 @@ wi_status wi_send_msg(wi_t self, const char *selector, plist_t args) {
   plist_to_bin(rpc_dict, &rpc_bin, &rpc_len);
   plist_free(rpc_dict);
   rpc_dict = NULL;
-  plist_t wi_dict = plist_new_dict();
-  plist_t wi_rpc = plist_new_data(rpc_bin, rpc_len);
-  plist_dict_insert_item(wi_dict, "WIRFinalMessageKey", wi_rpc);
-  char *data = NULL;
-  uint32_t data_len = 0;
-  plist_to_bin(wi_dict, &data, &data_len);
-  free(rpc_bin);
-  rpc_bin = NULL;
-  plist_free(wi_dict);
-  wi_dict = NULL;
-  wi_rpc = NULL; // freed by wi_dict
+  // if our message is <8k, we'll send a single final_msg,
+  // otherwise we'll send <8k partial_msg "chunks" then a final_msg "chunk"
+  wi_status ret = WI_ERROR;
+  uint32_t i;
+  for (i = 0; ; i += MAX_RPC_LEN) {
+    bool is_partial = (rpc_len - i > MAX_RPC_LEN);
+    plist_t wi_dict = plist_new_dict();
+    plist_t wi_rpc = plist_new_data(rpc_bin + i,
+        (is_partial ? MAX_RPC_LEN : rpc_len - i));
+    plist_dict_insert_item(wi_dict,
+        (is_partial ? "WIRPartialMessageKey" : "WIRFinalMessageKey"), wi_rpc);
+    char *data = NULL;
+    uint32_t data_len = 0;
+    plist_to_bin(wi_dict, &data, &data_len);
+    plist_free(wi_dict);
+    wi_dict = NULL;
+    wi_rpc = NULL; // freed by wi_dict
+    if (!data) {
+      break;
+    }
 
-  size_t length = data_len + 4;
+    size_t length = data_len + 4;
+    char *out_head = (char*)malloc(length * sizeof(char));
+    if (!out_head) {
+      free(data);
+      break;
+    }
+    char *out_tail = out_head;
 
-  char *out_head = (char*)malloc(length * sizeof(char));
-  if (!out_head) {
+    // write big-endian int
+    *out_tail++ = ((data_len >> 24) & 0xFF);
+    *out_tail++ = ((data_len >> 16) & 0xFF);
+    *out_tail++ = ((data_len >> 8) & 0xFF);
+    *out_tail++ = (data_len & 0xFF);
+
+    // write data
+    memcpy(out_tail, data, data_len);
     free(data);
-    return WI_ERROR;
+
+    wi_on_debug(self, "wi.send_packet", out_head, length);
+    wi_status not_sent = self->send_packet(self, out_head, length);
+    free(out_head);
+    if (not_sent) {
+      break;
+    }
+
+    if (!is_partial) {
+      ret = WI_SUCCESS;
+      break;
+    }
   }
-  char *out_tail = out_head;
-
-  // write big-endian int
-  *out_tail++ = ((data_len >> 24) & 0xFF);
-  *out_tail++ = ((data_len >> 16) & 0xFF);
-  *out_tail++ = ((data_len >> 8) & 0xFF);
-  *out_tail++ = (data_len & 0xFF);
-
-  // write data
-  memcpy(out_tail, data, data_len);
-  free(data);
-
-  wi_on_debug(self, "wi.send_packet", out_head, length);
-  wi_status ret = self->send_packet(self, out_head, length);
-  free(out_head);
+  free(rpc_bin);
   return ret;
 }
 
@@ -673,6 +694,7 @@ wi_status wi_parse_msg(wi_t self, const char *from_buf, size_t length,
   if (!rpc_bin) {
     return WI_ERROR;
   }
+  // assert rpc_len < MAX_RPC_LEN?
 
   size_t p_length = my->partial->tail - my->partial->head;
   if (*to_is_partial || p_length) {
