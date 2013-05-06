@@ -112,8 +112,20 @@ int iwdpm_connect(iwdp_t iwdp, const char *hostname, int port) {
   return sm_connect(hostname, port);
 }
 iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
-  ssize_t sent_bytes = send(fd, (void*)data, length, 0);
-  return (sent_bytes == length ? IWDP_SUCCESS : IWDP_ERROR);
+  const char *head = data;
+  const char *tail = data + length;
+  while (1) {
+    ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
+    if (sent_bytes < 0 || (!sent_bytes && tail > head)) {
+      return IWDP_ERROR;
+    }
+    head += sent_bytes;
+    if (head >= tail) {
+      return IWDP_SUCCESS;
+    }
+    // TODO replace with a non-blocking sm.select for fd.is_writable
+    usleep(500*1000);
+  }
 }
 iwdp_status iwdpm_add_fd(iwdp_t iwdp, int fd, void *value, bool is_server) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
