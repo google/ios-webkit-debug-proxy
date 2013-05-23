@@ -7,12 +7,15 @@
 // Requires `npm install optimist ws`
 
 var argv = require('optimist')
-    .default({ port : 9222, page : 1 })
+    .default({ port: 9222, page: 1, url: 'http://www.google.com' })
+    .usage('Usage: $0 [OPTIONS]\n\nSends a Page.navigate command to the proxy.')
+    .boolean('help')
+    .check(function() { return !arguments[0].help; })
     .argv
 
 var url = 'ws://localhost:' + argv.port + '/devtools/page/' + argv.page
 var commands = [
-    '{"id": 1, "method": "Page.navigate", "params":{"url": "http://www.google.com"}}'
+    '{"id": 1, "method": "Page.navigate", "params":{"url": "' + argv.url + '"}}'
 ]
 
 var WebSocket = require('ws');
@@ -37,6 +40,8 @@ ws.on('message', function(data, flags) {
        console.log('send '+commands[count])
        ws.send(commands[count++])
     } else {
+       // if we sent Page.enable, we could listen for Page.loadEventFired to
+       // see if our nav succeeded.
        ws.close()
     }
 });
