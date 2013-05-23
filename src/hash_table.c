@@ -11,7 +11,7 @@
 #include "hash_table.h"
 
 // constant for now, but we could easily resize & rehash
-#define NUM_BUCKETS 1
+#define NUM_BUCKETS 3
 
 struct ht_entry_struct {
   intptr_t hc;
@@ -82,20 +82,23 @@ size_t ht_size(ht_t self) {
   return self->num_keys;
 }
 
-void ht_find(ht_t self, const void *key,
+void ht_find(ht_t self, const void *key, intptr_t *to_hc,
     ht_entry_t **to_head, ht_entry_t *to_prev, ht_entry_t *to_curr) {
   intptr_t hc = (self->on_hash ? self->on_hash(self, key) : (intptr_t)key);
   ht_entry_t *head = self->buckets + (hc % self->num_buckets);
   ht_entry_t prev = NULL;
   ht_entry_t curr = *head;
-  for (; curr && curr->hc != hc &&
-      (self->on_cmp ? self->on_cmp(self, curr->key, key) :
-       curr->key != key);
+  for (; curr && !(curr->hc == hc &&
+      (self->on_cmp ? !self->on_cmp(self, curr->key, key) :
+       curr->key == key));
       prev = curr, curr = curr->next) {
   }
   *to_head = head;
   *to_prev = prev;
   *to_curr = curr;
+  if (to_hc) {
+    *to_hc = hc;
+  }
   // Instead of setting a "prev", we could set a "pointer-to-current":
   //     pp = head if no prev else &prev->next
   // which would (e.g.) simplify our caller's removal code from:
@@ -109,7 +112,7 @@ void *ht_get(ht_t self, const void *key, int want_key) {
   ht_entry_t *head;
   ht_entry_t prev;
   ht_entry_t curr;
-  ht_find(self, key, &head, &prev, &curr);
+  ht_find(self, key, NULL, &head, &prev, &curr);
   if (!curr) {
     return NULL;
   }
@@ -132,7 +135,7 @@ void *ht_remove(ht_t self, const void *key) {
   ht_entry_t *head;
   ht_entry_t prev;
   ht_entry_t curr;
-  ht_find(self, key, &head, &prev, &curr);
+  ht_find(self, key, NULL, &head, &prev, &curr);
   void *ret = (curr ? curr->value : NULL);
   if (curr) {
     if (prev) {
@@ -150,7 +153,8 @@ void *ht_put(ht_t self, void *key, void *value) {
   ht_entry_t *head;
   ht_entry_t prev;
   ht_entry_t curr;
-  ht_find(self, key, &head, &prev, &curr);
+  intptr_t hc;
+  ht_find(self, key, &hc, &head, &prev, &curr);
   void *ret = (curr ? curr->value : NULL);
   if (curr) {
     if (value) {
@@ -168,6 +172,7 @@ void *ht_put(ht_t self, void *key, void *value) {
     curr = (ht_entry_t)malloc(sizeof(struct ht_entry_struct));
     // if (!curr) ?
     memset(curr, 0, sizeof(struct ht_entry_struct));
+    curr->hc = hc;
     curr->key = key;
     curr->value = value;
     curr->next = *head;
