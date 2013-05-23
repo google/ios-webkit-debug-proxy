@@ -165,7 +165,7 @@ struct iwdp_ipage_struct {
   // browser
   uint32_t page_num;
 
-  // webinspector
+  // webinspector, which can lag re: on_applicationSentListing
   char *app_id;
   uint32_t page_id;
   char *connection_id;
@@ -219,10 +219,11 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
   int max_port = -1;
   if (self->select_port && self->select_port(self, device_id,
         &port, &min_port, &max_port)) {
-    return self->on_error(self, "select_port(%) failed", device_id);
+    return (device_id ? self->on_error(self, "select_port(%) failed",
+        device_id) : DL_SUCCESS);
   }
   if (port < 0 && (min_port < 0 || max_port < min_port)) {
-    return DL_ERROR; // ignore this device
+    return (device_id ? DL_ERROR : DL_SUCCESS); // ignore this device
   }
   if (!iport) {
     iport = iwdp_iport_new();
@@ -259,7 +260,8 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
     free(iports);
   }
   if (s_fd < 0) {
-    return self->on_error(self, "Unable to bind %s on port %d-%d", device_id,
+    return self->on_error(self, "Unable to bind %s on port %d-%d",
+        (device_id ? device_id : "\"devices list\""),
         min_port, max_port);
   }
   if (self->add_fd(self, s_fd, iport, true)) {
@@ -277,7 +279,6 @@ iwdp_status iwdp_start(iwdp_t self) {
   }
 
   if (iwdp_listen(self, NULL)) {
-    self->on_error(self, "Unable to create registry");
     // Okay, keep going
   }
 
@@ -471,6 +472,12 @@ iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
 
 iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
   // clear pointer to this iws
+  iwdp_ipage_t ipage = iws->ipage;
+  if (ipage) {
+    if (ipage->sender_id && ipage->iws == iws) {
+      iwdp_stop_devtools(ipage);
+    } // else internal error?
+  }
   iwdp_iport_t iport = iws->iport;
   if (iport) {
     ht_t iws_ht = iport->ws_id_to_iws;
@@ -478,12 +485,6 @@ iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
     iwdp_iws_t iws2 = (iwdp_iws_t)ht_get_value(iws_ht, ws_id);
     if (ws_id && iws2 == iws) {
       ht_remove(iws_ht, ws_id);
-    } // else internal error?
-  }
-  iwdp_ipage_t ipage = iws->ipage;
-  if (ipage) {
-    if (ipage->sender_id && ipage->iws == iws) {
-      iwdp_stop_devtools(ipage);
     } // else internal error?
   }
   iwdp_ifs_t ifs = iws->ifs;
@@ -768,6 +769,14 @@ ws_status iwdp_on_frame(ws_t ws,
         return ws->send_close(ws, CLOSE_GOING_AWAY,
             (ipage ? "webinspector closed" : "page closed"));
       }
+      if (ipage->connection_id && iwi->connection_id &&
+           !strcmp(ipage->connection_id, iwi->connection_id)) {
+        char *s = NULL;
+        asprintf(&s, "Page claimed by inspector %s", ipage->connection_id);
+        ws_status ret = ws->send_close(ws, CLOSE_GOING_AWAY, s);
+        free(s);
+        return ret;
+      }
       wi_t wi = iwi->wi;
       return wi->send_forwardSocketData(wi,
           iwi->connection_id,
@@ -832,6 +841,11 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
   ipage->iws = iws;
   ipage->sender_id = strdup(iws->ws_id);
   iwdp_iwi_t iwi = iws->iport->iwi;
+  if (ipage->connection_id && iwi->connection_id &&
+       !strcmp(ipage->connection_id, iwi->connection_id)) {
+    // steal this page from the other (dead?) inspector.  We might also need
+    // to send_forwardDidClose on their behalf...
+  }
   wi_t wi = iwi->wi;
   return wi->send_forwardSocketSetup(wi,
       iwi->connection_id,
@@ -858,9 +872,14 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
   iwdp_iwi_t iwi = iport->iwi;
   if (iwi) {
     wi_t wi = iwi->wi;
-    wi_status ret = wi->send_forwardDidClose(wi,
-        ipage->connection_id, ipage->app_id,
-        ipage->page_id, ipage->sender_id);
+    if (iwi->connection_id && (!ipage->connection_id ||
+          !strcmp(ipage->connection_id, iwi->connection_id))) {
+      // if ipage->connection_id is NULL then this is likely a lag between our
+      // send_forwardSocketSetup and the on_applicationSentListing ack.
+      wi->send_forwardDidClose(wi,
+          iwi->connection_id, ipage->app_id,
+          ipage->page_id, ipage->sender_id);
+    }
   }
   // close the ws_fd?
   iws->ipage = NULL;
@@ -927,8 +946,12 @@ wi_status iwdp_on_reportConnectedApplicationList(wi_t wi, const wi_app_t *apps) 
 wi_status iwdp_on_applicationSentListing(wi_t wi,
     const char *app_id, const wi_page_t *pages) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+  iwdp_t self = (iwi && iwi->iport ? iwi->iport->self : NULL);
+  if (!self) {
+    return wi->on_error(wi, "Inspector has been closed?");
+  }
   if (!ht_get_value(iwi->app_id_to_true, app_id)) {
-    return wi->on_error(wi, "Unknown app_id %s", app_id);;
+    return self->on_error(self, "Unknown app_id %s", app_id);
   }
   ht_t ipage_ht = iwi->page_num_to_ipage;
   iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
@@ -962,10 +985,10 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
          strcmp(ipage->connection_id, page->connection_id)) &&
         ipage->iws) {
       // Verify that this iwdp_open_devtools ack is us
-      iwdp_iwi_t iwi = ipage->iws->iport->iwi;
-      char *iwdp_connection_id = (iwi ? iwi->connection_id : NULL);
-      if (!iwdp_connection_id || strcmp(
-            iwdp_connection_id, page->connection_id)) {
+      iwdp_iwi_t iwi2 = ipage->iws->iport->iwi;
+      char *iwi_connection_id = (iwi2 ? iwi2->connection_id : NULL);
+      if (!iwi_connection_id || strcmp(
+            iwi_connection_id, page->connection_id)) {
         // Some other client stole our page?
       }
     }
