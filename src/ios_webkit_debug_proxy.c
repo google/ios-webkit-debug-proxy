@@ -203,7 +203,8 @@ const char *EXT_TO_MIME[][2] = {
   {"png", "image/png; charset=binary"},
   {"txt", "text/plain"},
 };
-iwdp_status iwdp_get_content_type(const char *path, bool is_local, char **to_mime);
+iwdp_status iwdp_get_content_type(const char *path, bool is_local,
+    char **to_mime);
 
 ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws);
 ws_status iwdp_stop_devtools(iwdp_ipage_t ipage);
@@ -603,7 +604,7 @@ ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
       "%s%s\r\n\r\n%s",
       status, (content ? strlen(content) : 0),
       (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""),
-      (is_head ? "" : content));
+      (content && !is_head ? content : ""));
   free(ctype);
   ws_status ret = ws->send_data(ws, data, strlen(data));
   free(data);
@@ -646,19 +647,13 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
 
 ws_status iwdp_on_not_found(ws_t ws, bool is_head, const char *resource,
     const char *details) {
-  char *ctype;
-  iwdp_get_content_type(resource, false, &ctype);
-  bool is_html = (ctype && !strncasecmp(ctype, "text/html", 9));
-  free(ctype);
-  char *content = NULL;
-  if (is_html) {
-    asprintf(&content,
-        "<html><title>Error 404 (Not Found)</title>\n"
-        "<p><b>404.</b> <ins>That's an error.</ins>\n"
-        "<p>The requested URL <code>%s</code> was not found.\n"
-        "%s</html>", resource, (details ? details : ""));
-  }
-  ws_status ret = iwdp_send_http(ws, is_head, "404 Not Found", resource,
+  char *content;
+  asprintf(&content,
+      "<html><title>Error 404 (Not Found)</title>\n"
+      "<p><b>404.</b> <ins>That's an error.</ins>\n"
+      "<p>The requested URL <code>%s</code> was not found.\n"
+      "%s</html>", resource, (details ? details : ""));
+  ws_status ret = iwdp_send_http(ws, is_head, "404 Not Found", ".html",
       content);
   free(content);
   return ret;
@@ -758,7 +753,7 @@ ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
 
   int fs_fd = open(path, O_RDONLY);
   if (fs_fd < 0) {
-    // file doesn't exist.  Provide more info if this is a "*.js" with a matching
+    // file doesn't exist.  Provide help if this is a "*.js" with a matching
     // "*.qrc", e.g. WebKit's qresource-compiled "InspectorBackendCommands.js"
     bool is_qrc = false;
     if (strlen(path) > 3 && !strcasecmp(path + strlen(path) - 3, ".js")) {
@@ -776,12 +771,13 @@ ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
       size_t fe_path_len = (fe_sep ? (fe_sep - fe_path) : strlen(fe_path));
       self->on_error(self, "Missing code-generated WebKit file:\n"
           "  %s\n"
-          "Possible fix:\n"
+          "A matching \".qrc\" exists, so try generating the \".js\":\n"
           "  cd %.*s/..\n"
           "  mkdir -p tmp\n"
           "  ./CodeGeneratorInspector.py Inspector.json "
           "--output_h_dir tmp --output_cpp_dir tmp\n"
-          "  mv tmp/*.js %s\n", path, fe_path_len, fe_path, fe_path_len, fe_path);
+          "  mv tmp/*.js %.*s\n", path, fe_path_len, fe_path,
+          fe_path_len, fe_path);
     }
     free(path);
     return iwdp_on_not_found(ws, is_head, resource,
@@ -792,6 +788,7 @@ ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
   free(path);
   struct stat fs_stat;
   if (fstat(fs_fd, &fs_stat) || !(fs_stat.st_mode & S_IFREG)) {
+    free(ctype);
     close(fs_fd);
     return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Not a file");
   }
@@ -851,13 +848,17 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
     return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Invalid path");
   }
   const char *fe_port = strchr(fe_host, ':');
-  if (fe_port && fe_port > fe_path) {
-    fe_port = NULL; // e.g. "http://foo.com/bar:x"
-  }
-  size_t fe_host_len = ((fe_port ? fe_port : fe_path) - fe_host);
+  fe_port = (fe_port && fe_port <= fe_path ? fe_port + 1 :
+      NULL); // e.g. "http://foo.com/bar:x"
+  size_t fe_host_len = ((fe_port ? fe_port - 1 : fe_path) - fe_host);
   char *host = strndup(fe_host, fe_host_len);
-  int port = (fe_port ? strtol(fe_port, NULL, 0) : -1);
-  port = (port > 0 ? port : 80);
+  int port = 80;
+  if (fe_port) {
+    char *sport = strndup(fe_port, fe_path - fe_port);
+    int port2 = strtol(fe_port, NULL, 0);
+    free(sport);
+    port = (port2 > 0 ? port2 : port);
+  }
 
   int fs_fd = self->connect(self, host, port);
   if (fs_fd < 0) {
@@ -865,7 +866,8 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
     asprintf(&error, "Unable to connect to %s:%d", host, port);
     free(host);
     free(path);
-    ws_status ret = iwdp_send_http(ws, is_head, "500 Server Error", ".txt", error);
+    ws_status ret = iwdp_send_http(ws, is_head, "500 Server Error", ".txt",
+        error);
     free(error);
     return ret;
   }
@@ -1689,7 +1691,8 @@ int iwdp_update_string(char **old_value, const char *new_value) {
   return 0;
 }
 
-iwdp_status iwdp_get_content_type(const char *path, bool is_local, char **to_mime) {
+iwdp_status iwdp_get_content_type(const char *path, bool is_local,
+    char **to_mime) {
   const char *mime = NULL;
   if (is_local) {
 #ifdef MAGIC_MIME
