@@ -136,10 +136,18 @@ struct iwdp_iws_struct {
   char *ws_id; // devtools sender_id
 
   // set if the resource is /devtools/page/<page_num>
-  // owner is iwi->page_num_to_ipage
-  iwdp_ipage_t ipage;
+  uint32_t page_num;
 
-  // sef if the resource is /devtools/<non-page>
+  // assert (!page_num ||
+  //     (ipage && ipage->page_num == page_num && ipage->iws == this))
+  //
+  // shortcut pointer to the page with our page_num, but only if
+  // we own that page (i.e. ipage->iws == this).  Another iws can "steal" our
+  // page away and set ipage == NULL, but we keep our page_num so we can report
+  // a useful error.
+  iwdp_ipage_t ipage; // owner is iwi->page_num_to_ipage
+
+  // set if the resource is /devtools/<non-page>
   iwdp_ifs_t ifs;
 };
 typedef struct iwdp_iws_struct *iwdp_iws_t;
@@ -763,16 +771,21 @@ ws_status iwdp_on_frame(ws_t ws,
         return ws->send_close(ws, CLOSE_PROTOCOL_ERROR,
             "Clients must mask");
       }
-      iwdp_ipage_t ipage = iws->ipage;
-      iwdp_iwi_t iwi = iws->iport->iwi;
-      if (!ipage || !iwi) {
-        return ws->send_close(ws, CLOSE_GOING_AWAY,
-            (ipage ? "webinspector closed" : "page closed"));
+      iwdp_iport_t iport = iws->iport;
+      iwdp_iwi_t iwi = iport->iwi;
+      if (!iwi) {
+        return ws->send_close(ws, CLOSE_GOING_AWAY, "inspector closed?");
       }
-      if (ipage->connection_id && iwi->connection_id &&
-           !strcmp(ipage->connection_id, iwi->connection_id)) {
-        char *s = NULL;
-        asprintf(&s, "Page claimed by inspector %s", ipage->connection_id);
+      iwdp_ipage_t ipage = iws->ipage;
+      if (!ipage) {
+        // someone stole our page?
+        iwdp_ipage_t p = (iws->page_num ? (iwdp_ipage_t)ht_get_value(
+            iwi->page_num_to_ipage, HT_KEY(iws->page_num)) : NULL);
+        char *s;
+        asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
+            (p ? "claimed by " : "not found"),
+            (p ? "" : (p->iws ? "local" : "remote")));
+        ws->on_error(ws, "%s", s);
         ws_status ret = ws->send_close(ws, CLOSE_GOING_AWAY, s);
         free(s);
         return ret;
@@ -833,20 +846,31 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
   if (!ipage || !iws) {
     return WS_ERROR;
   }
-  if (ipage->iws) {
-    // abort our other client, as if the page went away
-    iwdp_stop_devtools(ipage);
-  }
-  iws->ipage = ipage;
-  ipage->iws = iws;
-  ipage->sender_id = strdup(iws->ws_id);
   iwdp_iwi_t iwi = iws->iport->iwi;
-  if (ipage->connection_id && iwi->connection_id &&
-       !strcmp(ipage->connection_id, iwi->connection_id)) {
-    // steal this page from the other (dead?) inspector.  We might also need
-    // to send_forwardDidClose on their behalf...
+  if (!iwi) {
+    return WS_ERROR; // internal error?
   }
   wi_t wi = iwi->wi;
+  iwdp_iport_t iport = iwi->iport;
+  iwdp_iws_t iws2 = ipage->iws;
+  if (iws2) {
+    // steal this page from our other client, as if the page went away
+    wi->on_error(wi, "Taking page %d/%d from local %s to %s",
+        iport->port, ipage->page_num, iws2->ws_id, iws->ws_id);
+    iwdp_stop_devtools(ipage);
+    iws2->page_num = ipage->page_num;
+  }
+  iws->ipage = ipage;
+  iws->page_num = ipage->page_num;
+  ipage->iws = iws;
+  ipage->sender_id = strdup(iws->ws_id);
+  if (ipage->connection_id && iwi->connection_id &&
+       strcmp(ipage->connection_id, iwi->connection_id)) {
+    // steal this page from the other (not-us, maybe dead?) inspector.
+    // We also might need to send_forwardDidClose on their behalf...
+    wi->on_error(wi, "Taking page %d/%d from remote %s",
+        iport->port, ipage->page_num, ipage->connection_id);
+  }
   return wi->send_forwardSocketSetup(wi,
       iwi->connection_id,
       ipage->app_id, ipage->page_id, ipage->sender_id);
@@ -874,7 +898,7 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
     wi_t wi = iwi->wi;
     if (iwi->connection_id && (!ipage->connection_id ||
           !strcmp(ipage->connection_id, iwi->connection_id))) {
-      // if ipage->connection_id is NULL then this is likely a lag between our
+      // if ipage->connection_id is NULL, it's likely a normal lag between our
       // send_forwardSocketSetup and the on_applicationSentListing ack.
       wi->send_forwardDidClose(wi,
           iwi->connection_id, ipage->app_id,
@@ -883,6 +907,7 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
   }
   // close the ws_fd?
   iws->ipage = NULL;
+  iws->page_num = 0;
   ipage->iws = NULL;
   ipage->sender_id = NULL;
   free(sender_id);
@@ -946,7 +971,8 @@ wi_status iwdp_on_reportConnectedApplicationList(wi_t wi, const wi_app_t *apps) 
 wi_status iwdp_on_applicationSentListing(wi_t wi,
     const char *app_id, const wi_page_t *pages) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
-  iwdp_t self = (iwi && iwi->iport ? iwi->iport->self : NULL);
+  iwdp_iport_t iport = (iwi ? iwi->iport : NULL);
+  iwdp_t self = (iport ? iwi->iport->self : NULL);
   if (!self) {
     return wi->on_error(wi, "Inspector has been closed?");
   }
@@ -980,17 +1006,15 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
     }
     iwdp_update_string(&ipage->title, page->title);
     iwdp_update_string(&ipage->url, page->url);
-    if (page->connection_id && 
-        (!ipage->connection_id ||
-         strcmp(ipage->connection_id, page->connection_id)) &&
-        ipage->iws) {
-      // Verify that this iwdp_open_devtools ack is us
-      iwdp_iwi_t iwi2 = ipage->iws->iport->iwi;
-      char *iwi_connection_id = (iwi2 ? iwi2->connection_id : NULL);
-      if (!iwi_connection_id || strcmp(
-            iwi_connection_id, page->connection_id)) {
-        // Some other client stole our page?
-      }
+    if (ipage->iws && page->connection_id && iwi->connection_id &&
+        strcmp(iwi->connection_id, page->connection_id)) {
+      // a remote inspector stole stole our page?
+      char *s;
+      asprintf(&s, "Page %d/%d claimed by remote %s",
+          iport->port, ipage->page_id, page->connection_id);
+      wi->on_error(wi, "%s", s);
+      free(s);
+      ipage->iws->ipage = NULL;
     }
     iwdp_update_string(&ipage->connection_id, page->connection_id);
   }
