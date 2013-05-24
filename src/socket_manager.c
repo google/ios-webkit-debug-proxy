@@ -210,7 +210,7 @@ int sm_select(sm_t self, int timeout_secs) {
         if (read_bytes < 0) {
           if (errno != EWOULDBLOCK) {
             perror("recv failed");
-            return -errno;
+            self->remove_fd(self, fd);
           }
           break;
         }
