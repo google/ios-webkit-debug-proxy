@@ -578,7 +578,9 @@ iwdp_status iwdp_on_close(iwdp_t self, int fd, void *value, bool is_server) {
 ws_status iwdp_send_data(ws_t ws, const char *data, size_t length) {
   iwdp_iws_t iws = (iwdp_iws_t)ws->state;
   iwdp_t self = iws->iport->self;
-  return self->send(self, iws->ws_fd, data, length);
+  return (self->send(self, iws->ws_fd, data, length) ?
+      ws->on_error(ws, "Unable to send %zd bytes of data", length) :
+      WS_SUCCESS);
 }
 
 ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
@@ -1022,7 +1024,9 @@ ws_status iwdp_on_frame(ws_t ws,
 wi_status iwdp_send_packet(wi_t wi, const char *packet, size_t length) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
   iwdp_t self = iwi->iport->self;
-  return self->send(self, iwi->wi_fd, packet, length);
+  return (self->send(self, iwi->wi_fd, packet, length) ?
+      wi->on_error(wi, "Unable to send %zd bytes to inspector", length) :
+      WI_SUCCESS);
 }
 
 wi_status iwdp_on_reportSetup(wi_t wi) {
