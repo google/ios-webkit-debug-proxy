@@ -114,7 +114,7 @@ struct iwdp_iwi_struct {
   ht_t app_id_to_true;   // set of app_ids
   ht_t page_num_to_ipage;
 };
-iwdp_iwi_t iwdp_iwi_new(bool *is_debug);
+iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug);
 void iwdp_iwi_free(iwdp_iwi_t iwi);
 
 struct iwdp_ifs_struct;
@@ -300,6 +300,10 @@ iwdp_status iwdp_start(iwdp_t self) {
     return self->on_error(self, "Unable to start device_listener");
   }
 
+  // TODO add iOS simulator listener
+  // for now we'll fake a callback
+  dl->on_attach(dl, "SIMULATOR", -1);
+
   return IWDP_SUCCESS;
 }
 
@@ -311,6 +315,8 @@ dl_status iwdp_send_to_dl(dl_t dl, const char *buf, size_t length) {
 }
 
 dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
+  bool is_sim = (device_id && !strcmp(device_id, "SIMULATOR"));
+
   iwdp_t self = ((iwdp_idl_t)dl->state)->self;
   if (!device_id) {
     return self->on_error(self, "Null device_id");
@@ -336,15 +342,30 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
   char *device_name = iport->device_name;
 
   // connect to inspector
-  int wi_fd = self->attach(self, device_id, NULL,
+  int wi_fd;
+  if (is_sim) {
+    // TODO launch webinspectord
+    // For now we'll assume Safari starts it for us.
+    // The port 27753 is from `locate com.apple.webinspectord.plist`.
+    //
+    // `launchctl list` shows:
+    //   com.apple.iPhoneSimulator:com.apple.webinspectord
+    // so the launch is probably something like:
+    //   xpc_connection_create[_mach_service](...webinspectord, ...)?
+    wi_fd = self->connect(self, "localhost", 27753);
+  } else {
+    wi_fd = self->attach(self, device_id, NULL,
       (device_name ? NULL : &device_name));
+  }
   if (wi_fd < 0) {
     self->remove_fd(self, iport->s_fd);
-    self->on_error(self, "Unable to attach %s inspector", device_id);
+    if (!is_sim) {
+      self->on_error(self, "Unable to attach %s inspector", device_id);
+    }
     return DL_SUCCESS;
   }
   iport->device_name = device_name;
-  iwdp_iwi_t iwi = iwdp_iwi_new(self->is_debug);
+  iwdp_iwi_t iwi = iwdp_iwi_new(is_sim, self->is_debug);
   iwi->iport = iport;
   iport->iwi = iwi;
   if (self->add_fd(self, wi_fd, iwi, false)) {
@@ -1196,7 +1217,7 @@ void iwdp_iwi_free(iwdp_iwi_t iwi) {
     free(iwi);
   }
 }
-iwdp_iwi_t iwdp_iwi_new(bool *is_debug) {
+iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)malloc(sizeof(struct iwdp_iwi_struct));
   if (!iwi) {
     return NULL;
@@ -1205,7 +1226,7 @@ iwdp_iwi_t iwdp_iwi_new(bool *is_debug) {
   iwi->type.type = TYPE_IWI;
   iwi->app_id_to_true = ht_new(HT_STRING_KEYS);
   iwi->page_num_to_ipage = ht_new(HT_INT_KEYS);
-  wi_t wi = wi_new();
+  wi_t wi = wi_new(is_sim);
   if (!wi || !iwi->page_num_to_ipage || !iwi->app_id_to_true) {
     iwdp_iwi_free(iwi);
     return NULL;

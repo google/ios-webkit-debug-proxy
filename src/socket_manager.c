@@ -65,13 +65,18 @@ int sm_connect(const char *hostname, int port) {
   int ret = -1;
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
+  hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   struct addrinfo *res0;
-  if (getaddrinfo(hostname, "80", &hints, &res0)) {
+  char *port_str = NULL;
+  asprintf(&port_str, "%d", port);
+  ret = getaddrinfo(hostname, port_str, &hints, &res0);
+  free(port_str);
+  if (ret) {
     perror("Unknown host");
-    return errno;
+    return (ret < 0 ? ret : -1);
   }
+  ret = -1;
   struct addrinfo *res;
   for (res = res0; res; res = res->ai_next) {
     int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -79,9 +84,16 @@ int sm_connect(const char *hostname, int port) {
       continue;
     }
     int opts = fcntl(fd, F_GETFL);
-    int nb = 1;
-    if (connect(fd, res->ai_addr, res->ai_addrlen) ||
-        opts < 0 || fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
+    if (opts < 0) {
+      close(fd);
+      continue;
+    }
+    // TODO use non-blocking connect:
+    //   if (fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) { ... }
+    // but this causes a send error for reachable hosts:
+    //   Socket is not connected
+    if (connect(fd, res->ai_addr, res->ai_addrlen) < 0 &&
+        errno != EINPROGRESS) {
       close(fd);
       continue;
     }
@@ -210,7 +222,7 @@ int sm_select(sm_t self, int timeout_secs) {
         if (read_bytes < 0) {
           if (errno != EWOULDBLOCK) {
             perror("recv failed");
-            return -errno;
+            self->remove_fd(self, fd);
           }
           break;
         }

@@ -58,7 +58,7 @@ typedef struct wi_page_struct *wi_page_t;
 
 struct wi_struct;
 typedef struct wi_struct *wi_t;
-wi_t wi_new();
+wi_t wi_new(bool is_sim);
 void wi_free(wi_t self);
 
 struct wi_private;

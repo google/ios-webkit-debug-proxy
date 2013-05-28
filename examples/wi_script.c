@@ -258,7 +258,7 @@ my_wi_t my_wi_new(char *device_id, int fd, bool *is_debug) {
   if (!my_wi) {
     return NULL;
   }
-  wi_t wi = wi_new();
+  wi_t wi = wi_new(false);
   if (!wi) {
     free(my_wi);
     return NULL;

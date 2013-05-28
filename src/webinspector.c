@@ -34,6 +34,7 @@
 #define MAX_BODY_LENGTH 1<<20
 
 struct wi_private {
+  bool is_sim;
   cb_t in;
   cb_t partial;
   bool has_length;
@@ -273,6 +274,7 @@ plist_t wi_new_args(const char *connection_id) {
    __argument
  */
 wi_status wi_send_msg(wi_t self, const char *selector, plist_t args) {
+  wi_private_t my = self->private_state;
   if (!selector || !args) {
     return WI_ERROR;
   }
@@ -290,26 +292,35 @@ wi_status wi_send_msg(wi_t self, const char *selector, plist_t args) {
   wi_status ret = WI_ERROR;
   uint32_t i;
   for (i = 0; ; i += MAX_RPC_LEN) {
-    bool is_partial = (rpc_len - i > MAX_RPC_LEN);
-    plist_t wi_dict = plist_new_dict();
-    plist_t wi_rpc = plist_new_data(rpc_bin + i,
-        (is_partial ? MAX_RPC_LEN : rpc_len - i));
-    plist_dict_insert_item(wi_dict,
-        (is_partial ? "WIRPartialMessageKey" : "WIRFinalMessageKey"), wi_rpc);
+    bool is_partial = false;
     char *data = NULL;
     uint32_t data_len = 0;
-    plist_to_bin(wi_dict, &data, &data_len);
-    plist_free(wi_dict);
-    wi_dict = NULL;
-    wi_rpc = NULL; // freed by wi_dict
-    if (!data) {
-      break;
+    if (my->is_sim) {
+      data = rpc_bin;
+      data_len = rpc_len;
+      rpc_bin = NULL;
+    } else {
+      is_partial = (rpc_len - i > MAX_RPC_LEN);
+      plist_t wi_dict = plist_new_dict();
+      plist_t wi_rpc = plist_new_data(rpc_bin + i,
+          (is_partial ? MAX_RPC_LEN : rpc_len - i));
+      plist_dict_insert_item(wi_dict,
+          (is_partial ? "WIRPartialMessageKey" : "WIRFinalMessageKey"), wi_rpc);
+      plist_to_bin(wi_dict, &data, &data_len);
+      plist_free(wi_dict);
+      wi_dict = NULL;
+      wi_rpc = NULL; // freed by wi_dict
+      if (!data) {
+        break;
+      }
     }
 
     size_t length = data_len + 4;
     char *out_head = (char*)malloc(length * sizeof(char));
     if (!out_head) {
-      free(data);
+      if (!my->is_sim) {
+        free(data);
+      }
       break;
     }
     char *out_tail = out_head;
@@ -673,50 +684,54 @@ wi_status wi_parse_msg(wi_t self, const char *from_buf, size_t length,
   *to_args = NULL;
   *to_is_partial = false;
 
-  plist_t wi_dict = NULL;
-  plist_from_bin(from_buf, length, &wi_dict);
-  if (!wi_dict) {
-    return WI_ERROR;
-  }
-  plist_t wi_rpc = plist_dict_get_item(wi_dict, "WIRFinalMessageKey");
-  if (!wi_rpc) {
-    wi_rpc = plist_dict_get_item(wi_dict, "WIRPartialMessageKey");
-    if (!wi_rpc) {
+  plist_t rpc_dict = NULL;
+  if (my->is_sim) {
+    plist_from_bin(from_buf, length, &rpc_dict);
+  } else {
+    plist_t wi_dict = NULL;
+    plist_from_bin(from_buf, length, &wi_dict);
+    if (!wi_dict) {
       return WI_ERROR;
     }
-    *to_is_partial = true;
-  }
-
-  uint64_t rpc_len = 0;
-  char *rpc_bin = NULL;
-  plist_get_data_val(wi_rpc, &rpc_bin, &rpc_len);
-  plist_free(wi_dict); // also frees wi_rpc
-  if (!rpc_bin) {
-    return WI_ERROR;
-  }
-  // assert rpc_len < MAX_RPC_LEN?
-
-  size_t p_length = my->partial->tail - my->partial->head;
-  if (*to_is_partial || p_length) {
-    if (cb_ensure_capacity(my->partial, rpc_len)) {
-      return self->on_error(self, "Out of memory");
+    plist_t wi_rpc = plist_dict_get_item(wi_dict, "WIRFinalMessageKey");
+    if (!wi_rpc) {
+      wi_rpc = plist_dict_get_item(wi_dict, "WIRPartialMessageKey");
+      if (!wi_rpc) {
+        return WI_ERROR;
+      }
+      *to_is_partial = true;
     }
-    memcpy(my->partial->tail, rpc_bin, rpc_len);
-    my->partial->tail += rpc_len;
-    p_length += rpc_len;
-    free(rpc_bin);
-    if (*to_is_partial) {
-      return WI_SUCCESS;
-    }
-  }
 
-  plist_t rpc_dict = NULL;
-  if (p_length) {
-    plist_from_bin(my->partial->head, (uint32_t)p_length, &rpc_dict);
-    cb_clear(my->partial);
-  } else {
-    plist_from_bin(rpc_bin, (uint32_t)rpc_len, &rpc_dict);
-    free(rpc_bin);
+    uint64_t rpc_len = 0;
+    char *rpc_bin = NULL;
+    plist_get_data_val(wi_rpc, &rpc_bin, &rpc_len);
+    plist_free(wi_dict); // also frees wi_rpc
+    if (!rpc_bin) {
+      return WI_ERROR;
+    }
+    // assert rpc_len < MAX_RPC_LEN?
+
+    size_t p_length = my->partial->tail - my->partial->head;
+    if (*to_is_partial || p_length) {
+      if (cb_ensure_capacity(my->partial, rpc_len)) {
+        return self->on_error(self, "Out of memory");
+      }
+      memcpy(my->partial->tail, rpc_bin, rpc_len);
+      my->partial->tail += rpc_len;
+      p_length += rpc_len;
+      free(rpc_bin);
+      if (*to_is_partial) {
+        return WI_SUCCESS;
+      }
+    }
+
+    if (p_length) {
+      plist_from_bin(my->partial->head, (uint32_t)p_length, &rpc_dict);
+      cb_clear(my->partial);
+    } else {
+      plist_from_bin(rpc_bin, (uint32_t)rpc_len, &rpc_dict);
+      free(rpc_bin);
+    }
   }
   if (!rpc_dict) {
     return WI_ERROR;
@@ -898,7 +913,7 @@ void wi_free(wi_t self) {
     free(self);
   }
 }
-wi_t wi_new() {
+wi_t wi_new(bool is_sim) {
   wi_t self = (wi_t)malloc(sizeof(struct wi_struct));
   if (!self) {
     return NULL;
@@ -918,6 +933,7 @@ wi_t wi_new() {
     wi_free(self);
     return NULL;
   }
+  self->private_state->is_sim = is_sim;
   return self;
 }
 
