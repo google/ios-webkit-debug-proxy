@@ -6,12 +6,15 @@
 //
 
 #include <errno.h>
+//#include <magic.h> //apt-get install libmagic-dev
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/fcntl.h>
+#include <sys/stat.h>
 
 #include "device_listener.h"
 #include "hash_table.h"
@@ -30,11 +33,8 @@ struct iwdp_private {
   // our null-id registry (:9221) plus per-device ports (:9222-...)
   ht_t device_id_to_iport;
 
-  // static file server base url, e.g.
-  //   host "chrome-devtools-frontend.appspot.com"
-  //   path "/static/18.0.1025.74/"
-  char *frontend_host;
-  char *frontend_path;
+  // frontend url, e.g. "http://bar.com/devtools.html" or "/foo/inspector.html"
+  char *frontend;
 };
 
 
@@ -136,10 +136,18 @@ struct iwdp_iws_struct {
   char *ws_id; // devtools sender_id
 
   // set if the resource is /devtools/page/<page_num>
-  // owner is iwi->page_num_to_ipage
-  iwdp_ipage_t ipage;
+  uint32_t page_num;
 
-  // sef if the resource is /devtools/<non-page>
+  // assert (!page_num ||
+  //     (ipage && ipage->page_num == page_num && ipage->iws == this))
+  //
+  // shortcut pointer to the page with our page_num, but only if
+  // we own that page (i.e. ipage->iws == this).  Another iws can "steal" our
+  // page away and set ipage == NULL, but we keep our page_num so we can report
+  // a useful error.
+  iwdp_ipage_t ipage; // owner is iwi->page_num_to_ipage
+
+  // set if the resource is /devtools/<non-page>
   iwdp_ifs_t ifs;
 };
 typedef struct iwdp_iws_struct *iwdp_iws_t;
@@ -165,7 +173,7 @@ struct iwdp_ipage_struct {
   // browser
   uint32_t page_num;
 
-  // webinspector
+  // webinspector, which can lag re: on_applicationSentListing
   char *app_id;
   uint32_t page_id;
   char *connection_id;
@@ -182,7 +190,21 @@ void iwdp_ipage_free(iwdp_ipage_t ipage);
 int iwdp_ipage_cmp(const void *a, const void *b);
 char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     const char *device_id, const char *device_name,
-    const char *frontend, const char *host, int port);
+    const char *frontend_file, const char *host, int port);
+
+// file extension to Content-Type
+const char *EXT_TO_MIME[][2] = {
+  {"css", "text/css"},
+  {"gif", "image/gif; charset=binary"},
+  {"html", "text/html; charset=ISO-8859-1"},
+  {"ico", "image/x-icon"},
+  {"js", "application/javascript"},
+  {"json", "application/json"},
+  {"png", "image/png; charset=binary"},
+  {"txt", "text/plain"},
+};
+iwdp_status iwdp_get_content_type(const char *path, bool is_local,
+    char **to_mime);
 
 ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws);
 ws_status iwdp_stop_devtools(iwdp_ipage_t ipage);
@@ -219,10 +241,11 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
   int max_port = -1;
   if (self->select_port && self->select_port(self, device_id,
         &port, &min_port, &max_port)) {
-    return self->on_error(self, "select_port(%) failed", device_id);
+    return (device_id ? self->on_error(self, "select_port(%) failed",
+        device_id) : DL_SUCCESS);
   }
   if (port < 0 && (min_port < 0 || max_port < min_port)) {
-    return DL_ERROR; // ignore this device
+    return (device_id ? DL_ERROR : DL_SUCCESS); // ignore this device
   }
   if (!iport) {
     iport = iwdp_iport_new();
@@ -259,7 +282,8 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
     free(iports);
   }
   if (s_fd < 0) {
-    return self->on_error(self, "Unable to bind %s on port %d-%d", device_id,
+    return self->on_error(self, "Unable to bind %s on port %d-%d",
+        (device_id ? device_id : "\"devices list\""),
         min_port, max_port);
   }
   if (self->add_fd(self, s_fd, iport, true)) {
@@ -277,7 +301,6 @@ iwdp_status iwdp_start(iwdp_t self) {
   }
 
   if (iwdp_listen(self, NULL)) {
-    self->on_error(self, "Unable to create registry");
     // Okay, keep going
   }
 
@@ -460,7 +483,7 @@ iwdp_status iwdp_on_recv(iwdp_t self, int fd, void *value,
 iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
   iwdp_private_t my = self->private_state;
   // check pointer to this iport
-  char *device_id = iport->device_id;
+  const char *device_id = iport->device_id;
   ht_t iport_ht = my->device_id_to_iport;
   iwdp_iport_t old_iport = (iwdp_iport_t)ht_get_value(iport_ht, device_id);
   if (old_iport != iport) {
@@ -492,6 +515,12 @@ iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
 
 iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
   // clear pointer to this iws
+  iwdp_ipage_t ipage = iws->ipage;
+  if (ipage) {
+    if (ipage->sender_id && ipage->iws == iws) {
+      iwdp_stop_devtools(ipage);
+    } // else internal error?
+  }
   iwdp_iport_t iport = iws->iport;
   if (iport) {
     ht_t iws_ht = iport->ws_id_to_iws;
@@ -499,12 +528,6 @@ iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
     iwdp_iws_t iws2 = (iwdp_iws_t)ht_get_value(iws_ht, ws_id);
     if (ws_id && iws2 == iws) {
       ht_remove(iws_ht, ws_id);
-    } // else internal error?
-  }
-  iwdp_ipage_t ipage = iws->ipage;
-  if (ipage) {
-    if (ipage->sender_id && ipage->iws == iws) {
-      iwdp_stop_devtools(ipage);
     } // else internal error?
   }
   iwdp_ifs_t ifs = iws->ifs;
@@ -585,67 +608,75 @@ iwdp_status iwdp_on_close(iwdp_t self, int fd, void *value, bool is_server) {
 ws_status iwdp_send_data(ws_t ws, const char *data, size_t length) {
   iwdp_iws_t iws = (iwdp_iws_t)ws->state;
   iwdp_t self = iws->iport->self;
-  return self->send(self, iws->ws_fd, data, length);
+  return (self->send(self, iws->ws_fd, data, length) ?
+      ws->on_error(ws, "Unable to send %zd bytes of data", length) :
+      WS_SUCCESS);
 }
 
-ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
-  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
-  iwdp_iport_t iport = iws->iport;
-  char *content;
-  if (iport->device_id) {
-    ht_t ipage_ht = (iport->iwi ? iport->iwi->page_num_to_ipage : NULL);
-    iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
-    content = iwdp_ipages_to_text(ipages, want_json,
-        iport->device_id, iport->device_name, NULL, NULL,
-        iport->port);
-    free(ipages);
-  } else {
-    iwdp_iport_t *iports = (iwdp_iport_t *)ht_values(
-        iport->self->private_state->device_id_to_iport);
-    content = iwdp_iports_to_text(iports, want_json, NULL);
-    free(iports);
-  }
+ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
+    const char *resource, const char *content) {
+  char *ctype;
+  iwdp_get_content_type(resource, false, &ctype);
   char *data;
   asprintf(&data,
-      "HTTP/1.1 200 OK\r\n"
+      "HTTP/1.1 %s\r\n"
       "Content-length: %zd\r\n"
-      "Connection: close\r\n"
-      "Content-Type: %s\r\n"
-      "\r\n%s",
-      strlen(content),
-      (want_json ? "application/json" : "text/html; charset=UTF-8"),
-      (is_head ? "" : content));
-  free(content);
+      "Connection: close"
+      "%s%s\r\n\r\n%s",
+      status, (content ? strlen(content) : 0),
+      (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""),
+      (content && !is_head ? content : ""));
+  free(ctype);
   ws_status ret = ws->send_data(ws, data, strlen(data));
   free(data);
   return ret;
 }
 
-ws_status iwdp_on_not_found(ws_t ws, bool is_head, const char *resource) {
-  bool is_html = true; // TODO examine resource extension?
-  char *content = NULL;
-  if (is_html) {
-    asprintf(&content,
-        "<html><title>Error 404 (Not Found)</title>\n"
-        "<p><b>404.</b> <ins>That's an error.</ins>\n"
-        "<p>The requested URL <code>%s</code> was not found.\n"
-        "</html>", resource);
+ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
+  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
+  iwdp_iport_t iport = iws->iport;
+  iwdp_t self = iport->self;
+  iwdp_private_t my = self->private_state;
+  char *content;
+  if (iport->device_id) {
+    const char *fe_url = my->frontend;
+    const char *fe_file = NULL;
+    if (fe_url) {
+      const char *fe_proto = strstr(fe_url, "://");
+      const char *fe_path = (fe_proto ? fe_proto + 3 : fe_url);
+      const char *fe_sep = strrchr(fe_path, '/');
+      fe_file = (fe_sep ? (strlen(fe_sep) > 1 ? fe_sep + 1 : NULL) : fe_path);
+      if (!fe_file) {
+        self->on_error(self, "Ignoring invalid frontend: %s\n", fe_url);
+      }
+    }
+    ht_t ipage_ht = (iport->iwi ? iport->iwi->page_num_to_ipage : NULL);
+    iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
+    content = iwdp_ipages_to_text(ipages, want_json,
+        iport->device_id, iport->device_name, fe_file, NULL, iport->port);
+    free(ipages);
+  } else {
+    iwdp_iport_t *iports = (iwdp_iport_t *)ht_values(my->device_id_to_iport);
+    content = iwdp_iports_to_text(iports, want_json, NULL);
+    free(iports);
   }
-  char *data;
-  asprintf(&data,
-      "HTTP/1.1 404 Not Found\r\n"
-      "Content-length: %zd\r\n"
-      "Connection: close\r\n"
-      "Content-Type: %s\r\n"
-      "\r\n%s",
-      (content ? strlen(content) : 0),
-      "text/html; charset=UTF-8",
-      (is_head || !content ? "" : content));
-  if (content) {
-    free(content);
-  }
-  ws_status ret = ws->send_data(ws, data, strlen(data));
-  free(data);
+  ws_status ret = iwdp_send_http(ws, is_head, "200 OK",
+      (want_json ? ".json" : ".html"), content);
+  free(content);
+  return ret;
+}
+
+ws_status iwdp_on_not_found(ws_t ws, bool is_head, const char *resource,
+    const char *details) {
+  char *content;
+  asprintf(&content,
+      "<html><title>Error 404 (Not Found)</title>\n"
+      "<p><b>404.</b> <ins>That's an error.</ins>\n"
+      "<p>The requested URL <code>%s</code> was not found.\n"
+      "%s</html>", resource, (details ? details : ""));
+  ws_status ret = iwdp_send_http(ws, is_head, "404 Not Found", ".html",
+      content);
+  free(content);
   return ret;
 }
 
@@ -668,46 +699,218 @@ ws_status iwdp_on_devtools_request(ws_t ws, const char *resource) {
      (iwdp_ipage_t)ht_get_value(iwi->page_num_to_ipage,
        HT_KEY(page_num)) : NULL);
   if (!p) {
-    return iwdp_on_not_found(ws, false, resource);
+    return iwdp_on_not_found(ws, false, resource, "Unknown page id");
   }
   return iwdp_start_devtools(p, iws);
 }
 
-ws_status iwdp_on_static_request(ws_t ws, bool is_head, const char *resource,
-    bool *to_keep_alive) {
-  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
-  iwdp_t self = iws->iport->self;
+ws_status iwdp_get_frontend_path(const char *fe_path, const char *resource,
+    char **to_path) {
+  if (!to_path) {
+    return IWDP_ERROR;
+  }
+  *to_path = NULL;
+
+  // trim frontend "/qux/inspector.html" to "/qux/"
+  if (!fe_path) {
+    return IWDP_ERROR;
+  }
+  const char *fe_file = strrchr(fe_path, '/');
+  fe_file = (fe_file ? fe_file + 1 : NULL);
+  size_t fe_path_len = (fe_file ? (fe_file - fe_path) : 0);
+
+  // trim resource "/devtools/foo/bar.html?q" to "foo/bar.html"
+  // this might be too restrictive, but at least it's secure
   if (!resource || strncmp(resource, "/devtools/", 10)) {
-    return self->on_error(self, "Internal error: %s", resource);
+    return IWDP_ERROR;
+  }
+  const char *res = resource + 10;
+  const char *res_tail = res - 1;
+  while (*++res_tail == '/') { // deny root via !fe_path_len && res[0]=='/'
+  }
+  char ch;
+  for (ch = *res_tail;
+       ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+        (ch >= '0' && ch <= '9') || (ch && strchr("-./_", ch)));
+       ch = *++res_tail) {
+  }
+  size_t res_len = res_tail - res;
+  if (strnstr(res, "..", res_len)) {
+    return IWDP_ERROR;
+  }
+  if (!res_len && fe_file) {
+    res = fe_file;
+    res_len = strlen(fe_file);
   }
 
-  // This proxy is awkward but necessary, since that's what Android's
-  // devtools_http_protocol_handler.cc does :(
-  //
-  // Ideally we could also read Chrome's "resources.pak" file.
-  iwdp_private_t my = self->private_state;
-  char *hostname = my->frontend_host;
-  char *path = my->frontend_path;
+  // concat them into "/qux/foo/bar.html"
+  asprintf(to_path, "%.*s%.*s", (int)fe_path_len, fe_path, (int)res_len, res);
+  return IWDP_SUCCESS;
+}
 
-  int fs_fd = self->connect(self, hostname, 80);
+ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
+    const char *resource, const char *fe_path, bool *to_keep_alive) {
+  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
+  iwdp_t self = iws->iport->self;
+
+  // TODO if fe_path is "/blah/resources.pak#devtools.html", do something like:
+  //   if not my->path2pos and exists "/blah/resources.pak":
+  //     read pathToOffset from pak, e.g. [(22000,3500), (22001,5000), ...]
+  //     if exists "/blah/resources.dat":
+  //       read path2id from text file, e.g. "22000 devtools.html\n22001 ..."
+  //     elif exists chrome binary:  // ugly hack :(
+  //       find '\0devtools.html\0' in binary
+  //       read path2id from strings until a non-path, assume ids 22000-and-up
+  //     join into my->path2pos, e.g. {'devtools.html':(3500,1500), ...}
+  //   if my->path2pos:
+  //     offset, length = my->path2pos[resource + 10]
+  //     seek to offset in "/blah/resources.pak", read length bytes, ws->send
+
+  char *path;
+  iwdp_get_frontend_path(fe_path, resource, &path);
+  if (!path) {
+    return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Invalid path");
+  }
+
+  int fs_fd = open(path, O_RDONLY);
   if (fs_fd < 0) {
-    return self->on_error(self, "Unable to connect to %s", hostname);
+    // file doesn't exist.  Provide help if this is a "*.js" with a matching
+    // "*.qrc", e.g. WebKit's qresource-compiled "InspectorBackendCommands.js"
+    bool is_qrc = false;
+    if (strlen(path) > 3 && !strcasecmp(path + strlen(path) - 3, ".js")) {
+      char *qrc_path;
+      asprintf(&qrc_path, "%.*sqrc", (int)(strlen(path) - 2), path);
+      int qrc_fd = open(qrc_path, O_RDONLY);
+      free(qrc_path);
+      if (qrc_fd >= 0) {
+        is_qrc = true;
+        close(qrc_fd);
+      }
+    }
+    if (is_qrc) {
+      const char *fe_sep = strrchr(fe_path, '/');
+      size_t fe_path_len = (fe_sep ? (fe_sep - fe_path) : strlen(fe_path));
+      self->on_error(self, "Missing code-generated WebKit file:\n"
+          "  %s\n"
+          "A matching \".qrc\" exists, so try generating the \".js\":\n"
+          "  cd %.*s/..\n"
+          "  mkdir -p tmp\n"
+          "  ./CodeGeneratorInspector.py Inspector.json "
+          "--output_h_dir tmp --output_cpp_dir tmp\n"
+          "  mv tmp/*.js %.*s\n", path, fe_path_len, fe_path,
+          fe_path_len, fe_path);
+    }
+    free(path);
+    return iwdp_on_not_found(ws, is_head, resource,
+        (is_qrc ? "Missing code-generated WebKit file" : NULL));
+  }
+  char *ctype = NULL;
+  iwdp_get_content_type(path, true, &ctype);
+  free(path);
+  struct stat fs_stat;
+  if (fstat(fs_fd, &fs_stat) || !(fs_stat.st_mode & S_IFREG)) {
+    free(ctype);
+    close(fs_fd);
+    return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Not a file");
+  }
+  size_t length = fs_stat.st_size;
+  char *data = NULL;
+  asprintf(&data,
+      "HTTP/1.1 200 OK\r\n"
+      "Content-length: %zd\r\n"
+      "Connection: close"
+      "%s%s\r\n\r\n",
+      length, (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""));
+  free(ctype);
+  ws_status ret = ws->send_data(ws, data, strlen(data));
+  free(data);
+  if (ret || is_head || !length) {
+    close(fs_fd);
+    return ret;
+  }
+  // bummer, can't self->add_fd this non-socket fd to selectable :(
+  size_t max_len = 4096;
+  size_t buf_len = (length > max_len ? max_len : length);
+  char *buf = (char *)calloc(buf_len, sizeof(char));
+  ssize_t sent_bytes = 0;
+  while (true) {
+    ssize_t read_bytes = read(fs_fd, buf, buf_len);
+    if (read_bytes <= 0) {
+      break;
+    }
+    if (ws->send_data(ws, buf, read_bytes)) {
+      break;
+    }
+    sent_bytes += read_bytes;
+  }
+  close(fs_fd);
+  return (sent_bytes == length ? WS_SUCCESS : WS_ERROR);
+}
+
+ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
+    const char *resource, bool *to_keep_alive) {
+  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
+  iwdp_t self = iws->iport->self;
+  const char *fe_url = self->private_state->frontend;
+
+  if (!resource || !fe_url || strncasecmp(fe_url, "http://", 7)) {
+    return IWDP_ERROR; // internal error
+  }
+
+  const char *fe_host = fe_url + 7;
+  const char *fe_path = strchr(fe_host, '/');
+  if (!fe_path) {
+    return iwdp_send_http(ws, is_head, "500 Server Error", ".txt",
+        "Invalid frontend URL?");
+  }
+  char *path;
+  iwdp_get_frontend_path(fe_path, resource, &path);
+  if (!path) {
+    return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Invalid path");
+  }
+  const char *fe_port = strchr(fe_host, ':');
+  fe_port = (fe_port && fe_port <= fe_path ? fe_port + 1 :
+      NULL); // e.g. "http://foo.com/bar:x"
+  size_t fe_host_len = ((fe_port ? fe_port - 1 : fe_path) - fe_host);
+  char *host = strndup(fe_host, fe_host_len);
+  int port = 80;
+  if (fe_port) {
+    char *sport = strndup(fe_port, fe_path - fe_port);
+    int port2 = strtol(fe_port, NULL, 0);
+    free(sport);
+    port = (port2 > 0 ? port2 : port);
+  }
+
+  int fs_fd = self->connect(self, host, port);
+  if (fs_fd < 0) {
+    char *error;
+    asprintf(&error, "Unable to connect to %s:%d", host, port);
+    free(host);
+    free(path);
+    ws_status ret = iwdp_send_http(ws, is_head, "500 Server Error", ".txt",
+        error);
+    free(error);
+    return ret;
   }
   iwdp_ifs_t ifs = iwdp_ifs_new();
   ifs->iws = iws;
   ifs->fs_fd = fs_fd;
   iws->ifs = ifs;
   if (self->add_fd(self, fs_fd, ifs, false)) {
+    free(host);
+    free(path);
     return self->on_error(self, "Unable to add fd %d", fs_fd);
   }
   char *data;
   asprintf(&data,
-      "%s %s%s HTTP/1.1\r\n"
+      "%s %s HTTP/1.1\r\n"
       "Host: %s\r\n"
       "Connection: close\r\n" // keep-alive?
       "Accept: */*\r\n"
       "\r\n",
-      (is_head ? "HEAD" : "GET"), path, resource + 10, hostname);
+      (is_head ? "HEAD" : "GET"), path, host);
+  free(host);
+  free(path);
   size_t length = strlen(data);
   iwdp_status ret = self->send(self, fs_fd, data, length);
   free(data);
@@ -729,6 +932,30 @@ ws_status iwdp_on_static_request(ws_t ws, bool is_head, const char *resource,
    */
 }
 
+ws_status iwdp_on_static_request(ws_t ws, bool is_head, const char *resource,
+    bool *to_keep_alive) {
+  iwdp_iws_t iws = (iwdp_iws_t)ws->state;
+  iwdp_t self = iws->iport->self;
+  if (!resource || strncmp(resource, "/devtools/", 10)) {
+    return self->on_error(self, "Internal error: %s", resource);
+  }
+
+  iwdp_private_t my = self->private_state;
+  const char *fe_url = my->frontend;
+  if (!fe_url) {
+    return iwdp_on_not_found(ws, is_head, resource, "Frontend is disabled.");
+  }
+  bool is_file = !strstr(fe_url, "://");
+  if (is_file || !strncasecmp(fe_url, "file://", 7)) {
+    return iwdp_on_static_request_for_file(ws, is_head, resource,
+        fe_url + (is_file ? 0 : 7), to_keep_alive);
+  } else if (!strncasecmp(fe_url, "http://", 7)) {
+    return iwdp_on_static_request_for_http(ws, is_head, resource,
+        to_keep_alive);
+  }
+  return iwdp_on_not_found(ws, is_head, resource, "Invalid frontend URL?");
+}
+
 ws_status iwdp_on_http_request(ws_t ws,
     const char *method, const char *resource, const char *version,
     const char *headers, size_t headers_length, bool is_websocket,
@@ -741,7 +968,7 @@ ws_status iwdp_on_http_request(ws_t ws,
     }
   } else {
     if (!is_get && !is_head) {
-      return iwdp_on_not_found(ws, is_head, resource);
+      return iwdp_on_not_found(ws, is_head, resource, "Method Not Allowed");
     }
     if (!strlen(resource) || !strcmp(resource, "/")) {
       return iwdp_on_list_request(ws, is_head, false);
@@ -757,7 +984,7 @@ ws_status iwdp_on_http_request(ws_t ws,
     //   /json/close/*   -- close page
     //   /thumb/*        -- get page thumbnail png
   }
-  return iwdp_on_not_found(ws, is_head, resource);
+  return iwdp_on_not_found(ws, is_head, resource, NULL);
 }
 
 ws_status iwdp_on_upgrade(ws_t ws,
@@ -783,11 +1010,24 @@ ws_status iwdp_on_frame(ws_t ws,
         return ws->send_close(ws, CLOSE_PROTOCOL_ERROR,
             "Clients must mask");
       }
+      iwdp_iport_t iport = iws->iport;
+      iwdp_iwi_t iwi = iport->iwi;
+      if (!iwi) {
+        return ws->send_close(ws, CLOSE_GOING_AWAY, "inspector closed?");
+      }
       iwdp_ipage_t ipage = iws->ipage;
-      iwdp_iwi_t iwi = iws->iport->iwi;
-      if (!ipage || !iwi) {
-        return ws->send_close(ws, CLOSE_GOING_AWAY,
-            (ipage ? "webinspector closed" : "page closed"));
+      if (!ipage) {
+        // someone stole our page?
+        iwdp_ipage_t p = (iws->page_num ? (iwdp_ipage_t)ht_get_value(
+            iwi->page_num_to_ipage, HT_KEY(iws->page_num)) : NULL);
+        char *s;
+        asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
+            (p ? "claimed by " : "not found"),
+            (p ? "" : (p->iws ? "local" : "remote")));
+        ws->on_error(ws, "%s", s);
+        ws_status ret = ws->send_close(ws, CLOSE_GOING_AWAY, s);
+        free(s);
+        return ret;
       }
       wi_t wi = iwi->wi;
       return wi->send_forwardSocketData(wi,
@@ -820,7 +1060,9 @@ ws_status iwdp_on_frame(ws_t ws,
 wi_status iwdp_send_packet(wi_t wi, const char *packet, size_t length) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
   iwdp_t self = iwi->iport->self;
-  return self->send(self, iwi->wi_fd, packet, length);
+  return (self->send(self, iwi->wi_fd, packet, length) ?
+      wi->on_error(wi, "Unable to send %zd bytes to inspector", length) :
+      WI_SUCCESS);
 }
 
 wi_status iwdp_on_reportSetup(wi_t wi) {
@@ -845,15 +1087,31 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
   if (!ipage || !iws) {
     return WS_ERROR;
   }
-  if (ipage->iws) {
-    // abort our other client, as if the page went away
+  iwdp_iwi_t iwi = iws->iport->iwi;
+  if (!iwi) {
+    return WS_ERROR; // internal error?
+  }
+  wi_t wi = iwi->wi;
+  iwdp_iport_t iport = iwi->iport;
+  iwdp_iws_t iws2 = ipage->iws;
+  if (iws2) {
+    // steal this page from our other client, as if the page went away
+    wi->on_error(wi, "Taking page %d/%d from local %s to %s",
+        iport->port, ipage->page_num, iws2->ws_id, iws->ws_id);
     iwdp_stop_devtools(ipage);
+    iws2->page_num = ipage->page_num;
   }
   iws->ipage = ipage;
+  iws->page_num = ipage->page_num;
   ipage->iws = iws;
   ipage->sender_id = strdup(iws->ws_id);
-  iwdp_iwi_t iwi = iws->iport->iwi;
-  wi_t wi = iwi->wi;
+  if (ipage->connection_id && iwi->connection_id &&
+       strcmp(ipage->connection_id, iwi->connection_id)) {
+    // steal this page from the other (not-us, maybe dead?) inspector.
+    // We also might need to send_forwardDidClose on their behalf...
+    wi->on_error(wi, "Taking page %d/%d from remote %s",
+        iport->port, ipage->page_num, ipage->connection_id);
+  }
   return wi->send_forwardSocketSetup(wi,
       iwi->connection_id,
       ipage->app_id, ipage->page_id, ipage->sender_id);
@@ -879,12 +1137,18 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
   iwdp_iwi_t iwi = iport->iwi;
   if (iwi) {
     wi_t wi = iwi->wi;
-    wi_status ret = wi->send_forwardDidClose(wi,
-        ipage->connection_id, ipage->app_id,
-        ipage->page_id, ipage->sender_id);
+    if (iwi->connection_id && (!ipage->connection_id ||
+          !strcmp(ipage->connection_id, iwi->connection_id))) {
+      // if ipage->connection_id is NULL, it's likely a normal lag between our
+      // send_forwardSocketSetup and the on_applicationSentListing ack.
+      wi->send_forwardDidClose(wi,
+          iwi->connection_id, ipage->app_id,
+          ipage->page_id, ipage->sender_id);
+    }
   }
   // close the ws_fd?
   iws->ipage = NULL;
+  iws->page_num = 0;
   ipage->iws = NULL;
   ipage->sender_id = NULL;
   free(sender_id);
@@ -948,8 +1212,13 @@ wi_status iwdp_on_reportConnectedApplicationList(wi_t wi, const wi_app_t *apps) 
 wi_status iwdp_on_applicationSentListing(wi_t wi,
     const char *app_id, const wi_page_t *pages) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+  iwdp_iport_t iport = (iwi ? iwi->iport : NULL);
+  iwdp_t self = (iport ? iwi->iport->self : NULL);
+  if (!self) {
+    return wi->on_error(wi, "Inspector has been closed?");
+  }
   if (!ht_get_value(iwi->app_id_to_true, app_id)) {
-    return wi->on_error(wi, "Unknown app_id %s", app_id);;
+    return self->on_error(self, "Unknown app_id %s", app_id);
   }
   ht_t ipage_ht = iwi->page_num_to_ipage;
   iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
@@ -978,17 +1247,15 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
     }
     iwdp_update_string(&ipage->title, page->title);
     iwdp_update_string(&ipage->url, page->url);
-    if (page->connection_id && 
-        (!ipage->connection_id ||
-         strcmp(ipage->connection_id, page->connection_id)) &&
-        ipage->iws) {
-      // Verify that this iwdp_open_devtools ack is us
-      iwdp_iwi_t iwi = ipage->iws->iport->iwi;
-      char *iwdp_connection_id = (iwi ? iwi->connection_id : NULL);
-      if (!iwdp_connection_id || strcmp(
-            iwdp_connection_id, page->connection_id)) {
-        // Some other client stole our page?
-      }
+    if (ipage->iws && page->connection_id && iwi->connection_id &&
+        strcmp(iwi->connection_id, page->connection_id)) {
+      // a remote inspector stole stole our page?
+      char *s;
+      asprintf(&s, "Page %d/%d claimed by remote %s",
+          iport->port, ipage->page_id, page->connection_id);
+      wi->on_error(wi, "%s", s);
+      free(s);
+      ipage->iws->ipage = NULL;
     }
     iwdp_update_string(&ipage->connection_id, page->connection_id);
   }
@@ -1038,6 +1305,7 @@ void iwdp_free(iwdp_t self) {
     iwdp_private_t my = self->private_state;
     if (my) {
       ht_free(my->device_id_to_iport);
+      free(my->frontend);
       memset(my, 0, sizeof(struct iwdp_private));
       free(my);
     }
@@ -1045,11 +1313,11 @@ void iwdp_free(iwdp_t self) {
     free(self);
   }
 }
-iwdp_t iwdp_new() {
+iwdp_t iwdp_new(const char *frontend) {
   iwdp_t self = (iwdp_t)malloc(sizeof(struct iwdp_struct));
   iwdp_private_t my = (iwdp_private_t)malloc(sizeof(struct iwdp_private));
   if (!self || !my) {
-    free(self);
+    iwdp_free(self);
     return NULL;
   }
   memset(self, 0, sizeof(struct iwdp_struct));
@@ -1060,9 +1328,8 @@ iwdp_t iwdp_new() {
   self->on_close = iwdp_on_close;
   self->on_error = iwdp_on_error;
   self->private_state = my;
+  my->frontend = (frontend ? strdup(frontend) : NULL);
   my->device_id_to_iport = ht_new(HT_STRING_KEYS);
-  my->frontend_host = "chrome-devtools-frontend.appspot.com";
-  my->frontend_path = "/static/18.0.1025.74/";
   if (!my->device_id_to_iport) {
     iwdp_free(self);
     return NULL;
@@ -1167,6 +1434,8 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
             (host ? host : "localhost"), iport->port);
       }
     } else {
+      // TODO use relative urls instead of "localhost", see:
+      //   http://stackoverflow.com/questions/6016120
       char *href = NULL;
       if (iport->iwi) {
         asprintf(&href, " href=\"http://%s:%d/\"",
@@ -1338,7 +1607,7 @@ int iwdp_ipage_cmp(const void *a, const void *b) {
  */
 char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     const char *device_id, const char *device_name,
-    const char *frontend, const char *host, int port) {
+    const char *frontend_file, const char *host, int port) {
   // count pages
   size_t n = 0;
   const iwdp_ipage_t *ipp;
@@ -1359,9 +1628,10 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
   for (ipp = ipages; *ipp; ipp++) {
     iwdp_ipage_t ipage = *ipp;
     char *href = NULL;
-    asprintf(&href, "%s?host=%s:%d&page=%d",
-        (frontend ? frontend : "/devtools/devtools.html"),
-        (host ? host : "localhost"), port, ipage->page_num);
+    if (frontend_file) {
+      asprintf(&href, "/devtools/%s?host=%s:%d&page=%d",
+          frontend_file, (host ? host : "localhost"), port, ipage->page_num);
+    }
     char *s = NULL;
     if (want_json) {
       asprintf(&s, 
@@ -1373,16 +1643,18 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           "   \"url\": \"%s\",\n"
           "   \"webSocketDebuggerUrl\": \"ws://%s:%d/devtools/page/%d\"\n"
           "}",
-          (sum_len ? "," : ""), (ipage->iws ? "" : href),
+          (sum_len ? "," : ""), (href && !ipage->iws ? href : ""),
           (ipage->url ? ipage->url : ""),
           (ipage->title ? ipage->title : ""),
           (ipage->url ? ipage->url : ""),
           (host ? host : "localhost"), port, ipage->page_num);
     } else {
       asprintf(&s,
-          "<li value=\"%d\"><a %s=\"%s\" title=\"%s\">%s</a></li>\n",
+          "<li value=\"%d\"><a%s%s%s title=\"%s\">%s</a></li>\n",
           ipage->page_num,
-          (ipage->iws ? "alt" : "href"), href,
+          (href ? (ipage->iws ? " alt=\"" : " href=\"") : ""),
+          (href ? href : ""),
+          (href ? "\"" : ""),
           (ipage->title ? ipage->title : "?"),
           (ipage->url ? ipage->url : "?")); // encodeURI?
     }
@@ -1440,3 +1712,34 @@ int iwdp_update_string(char **old_value, const char *new_value) {
   return 0;
 }
 
+iwdp_status iwdp_get_content_type(const char *path, bool is_local,
+    char **to_mime) {
+  const char *mime = NULL;
+  if (is_local) {
+#ifdef MAGIC_MIME
+    magic_t fs_m = magic_open(MAGIC_MIME);
+    if (fs_m) {
+      if (!magic_load(fs_m, NULL)) {
+        mime = magic_file(fs_m, path);
+      }
+      magic_close(fs_m);
+    }
+#endif
+  }
+  if (!mime) {
+    char *fext = strrchr(path, '.');
+    if (fext) {
+      ++fext;
+      size_t n = (sizeof(EXT_TO_MIME) / sizeof(EXT_TO_MIME[0]));
+      size_t i;
+      for (i = 0; i < n; i++) {
+        if (!strcasecmp(fext, EXT_TO_MIME[i][0])) {
+          mime = EXT_TO_MIME[i][1];
+          break;
+        }
+      }
+    }
+  }
+  *to_mime = (mime ? strdup(mime) : NULL);
+  return (mime ? IWDP_SUCCESS : IWDP_ERROR);
+}

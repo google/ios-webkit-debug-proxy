@@ -24,6 +24,7 @@
 
 struct iwdpm_struct {
   char *config;
+  char *frontend;
   bool is_debug;
 
   pc_t pc;
@@ -152,7 +153,7 @@ sm_status iwdpm_on_close(sm_t sm, int fd, void *value, bool is_server) {
 
 void iwdpm_create_bridge(iwdpm_t self) {
   sm_t sm = sm_new(4096);
-  iwdp_t iwdp = iwdp_new();
+  iwdp_t iwdp = iwdp_new(self->frontend);
   if (!sm || !iwdp) {
     sm_free(sm);
     return;
@@ -182,6 +183,8 @@ void iwdpm_free(iwdpm_t self) {
     pc_free(self->pc);
     iwdp_free(self->iwdp);
     sm_free(self->sm);
+    free(self->config);
+    free(self->frontend);
     memset(self, 0, sizeof(struct iwdpm_struct));
     free(self);
   }
@@ -200,24 +203,26 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
 
   static struct option longopts[] = {
     {"config", 1, NULL, 'c'},
+    {"frontend", 1, NULL, 'f'},
+    {"no-frontend", 0, NULL, 'F'},
     {"debug", 0, NULL, 'd'},
     {"help", 0, NULL, 'h'},
 
-    // also accept ideviceinfo's format
-    {"udid", 1, NULL, 'u'},
-
     {NULL, 0, NULL, 0}
   };
+  const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
+  const char *DEFAULT_FRONTEND =
+     "http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html";
 
-  self->config = strdup(":9221-9322");
+  self->config = strdup(DEFAULT_CONFIG);
+  self->frontend = strdup(DEFAULT_FRONTEND);
 
   int ret = 0;
   while (!ret) {
-    int c = getopt_long(argc, argv, "hc:d", longopts, (int *)0);
+    int c = getopt_long(argc, argv, "hc:f:Fd", longopts, (int *)0);
     if (c == -1) {
       break;
     }
-
     switch (c) {
       case 'h':
         ret = -1;
@@ -225,6 +230,11 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
       case 'c':
         free(self->config);
         self->config = strdup(optarg);
+        break;
+      case 'f':
+      case 'F':
+        free(self->frontend);
+        self->frontend = (c == 'f' ? strdup(optarg) : NULL);
         break;
       case 'd':
         self->is_debug = true;
@@ -241,12 +251,32 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
   if (ret) {
     char *name = strrchr(argv[0], '/');
     printf(
-        "Usage: %s OPTIONS\n"
-        "iOS WebKit Remote Debugging Protocol adapter.\n\n"
-        "  -c, --config FILE\tconfig filename or UUID:port.\n"
-        "  -h, --help\t\tprints usage information\n"
-        "  -d, --debug\t\tenable communication debugging\n"
-        "\n", (name ? name + 1 : argv[0]));
+        "Usage: %s [OPTIONS]\n"
+        "iOS WebKit Remote Debugging Protocol Proxy.\n"
+        "\n"
+        "  -c, --config CSV\t[UDID]:port[-port] config(s), defaults to:\n"
+        "          %s\n"
+        "        which will list devices (\"null:\") on port 9221 and assign\n"
+        "        all other devices (\":\") to the next unused port in the\n"
+        "        9222-9322 range, in the (somewhat random) order that the\n"
+        "        devices are detected.\n"
+        "        E.g. to track a single device with a specific port:\n"
+        "          4ea8dd11e8c4fbc1a2deadbeefa0fd3bbbb268c7:9227\n"
+        "        The value can be the path to a file in the above format.\n"
+        "\n"
+        "  -f, --frontend URL\tDevTools frontend UI path or URL, defaults to:\n"
+        "          %s\n"
+        "        E.g. to use a local WebKit checkout:\n"
+        "          /usr/local/WebCore/inspector/front-end/inspector.html\n"
+        "        E.g. to use a remote server:\n"
+        "          http://foo.com:1234/bar/inspector.html\n"
+        "        The value must end in \".html\"\n"
+        "\n"
+        "  --no-frontend \tDisable the DevTools frontend.\n"
+        "\n"
+        "  -d, --debug\t\tEnable debug output.\n"
+        "  -h, --help\t\tPrint this usage information.\n"
+        "\n", (name ? name + 1 : argv[0]), DEFAULT_CONFIG, DEFAULT_FRONTEND);
   }
   return ret;
 }
