@@ -113,20 +113,8 @@ int iwdpm_connect(iwdp_t iwdp, const char *hostname, int port) {
   return sm_connect(hostname, port);
 }
 iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
-  const char *head = data;
-  const char *tail = data + length;
-  while (1) {
-    ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
-    if (sent_bytes < 0 || (!sent_bytes && tail > head)) {
-      return IWDP_ERROR;
-    }
-    head += sent_bytes;
-    if (head >= tail) {
-      return IWDP_SUCCESS;
-    }
-    // TODO replace with a non-blocking sm.select for fd.is_writable
-    usleep(500*1000);
-  }
+  sm_t sm = ((iwdpm_t)iwdp->state)->sm;
+  return sm_send(sm, fd, NULL, data, length);
 }
 iwdp_status iwdpm_add_fd(iwdp_t iwdp, int fd, void *value, bool is_server) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
@@ -140,6 +128,10 @@ sm_status iwdpm_on_accept(sm_t sm, int s_fd, void *s_value,
     int fd, void **to_value) {
   iwdp_t iwdp = ((iwdpm_t)sm->state)->iwdp;
   return iwdp->on_accept(iwdp, s_fd, s_value, fd, to_value);
+}
+sm_status iwdpm_on_sent(sm_t sm, int fd, void *value,
+    const char *buf, ssize_t length) {
+  return SM_SUCCESS;
 }
 sm_status iwdpm_on_recv(sm_t sm, int fd, void *value,
     const char *buf, ssize_t length) {
@@ -171,6 +163,7 @@ void iwdpm_create_bridge(iwdpm_t self) {
   iwdp->state = self;
   iwdp->is_debug = &self->is_debug;
   sm->on_accept = iwdpm_on_accept;
+  sm->on_sent = iwdpm_on_sent;
   sm->on_recv = iwdpm_on_recv;
   sm->on_close = iwdpm_on_close;
   sm->state = self;

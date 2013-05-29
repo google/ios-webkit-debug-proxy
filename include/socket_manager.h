@@ -45,6 +45,10 @@ struct sm_struct {
 
   sm_status (*remove_fd)(sm_t self, int fd);
 
+  // @param value a value for the on_sent callback
+  sm_status (*send)(sm_t self, int fd, const char *data, size_t length,
+      void* value);
+
   int (*select)(sm_t self, int timeout_secs);
 
   sm_status (*cleanup)(sm_t self);
@@ -59,6 +63,9 @@ struct sm_struct {
   sm_status (*on_accept)(sm_t self,
                          int server_fd, void *server_value,
                          int fd, void **to_value);
+
+  sm_status (*on_sent)(sm_t self, int fd, void *value,
+                       const char *buf, ssize_t length);
 
   sm_status (*on_recv)(sm_t self, int fd, void *value,
                        const char *buf, ssize_t length);
