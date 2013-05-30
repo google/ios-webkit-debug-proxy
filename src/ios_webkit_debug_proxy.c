@@ -81,6 +81,10 @@ struct iwdp_iport_struct {
   int port;
   int s_fd;
 
+  // true if iwdp_on_attach has succeeded and we should restore this port
+  // if the device is reattach
+  bool is_sticky;
+
   // all websocket clients on this port
   // key owned by iws->ws_id
   ht_t ws_id_to_iws;
@@ -338,12 +342,11 @@ dl_status iwdp_send_to_dl(dl_t dl, const char *buf, size_t length) {
 }
 
 dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
-  bool is_sim = (device_id && !strcmp(device_id, "SIMULATOR"));
-
   iwdp_t self = ((iwdp_idl_t)dl->state)->self;
   if (!device_id) {
     return self->on_error(self, "Null device_id");
   }
+
   if (iwdp_listen(self, device_id)) {
     // Couldn't bind browser port, or we're simply ignoring this device
     return DL_SUCCESS;
@@ -366,6 +369,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
 
   // connect to inspector
   int wi_fd;
+  bool is_sim = !strcmp(device_id, "SIMULATOR");
   if (is_sim) {
     // TODO launch webinspectord
     // For now we'll assume Safari starts it for us.
@@ -387,7 +391,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
     }
     return DL_SUCCESS;
   }
-  iport->device_name = device_name;
+  iport->device_name = (device_name ? device_name : strdup(device_id));
   iwdp_iwi_t iwi = iwdp_iwi_new(is_sim, self->is_debug);
   iwi->iport = iport;
   iport->iwi = iwi;
@@ -406,6 +410,8 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
         device_id);
     return DL_SUCCESS;
   }
+
+  iport->is_sticky = true;
   return DL_SUCCESS;
 }
 
@@ -508,8 +514,13 @@ iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
       self->remove_fd(self, iwi->wi_fd);
     }
   }
-  // keep iport so we can restore the port if this device is reattached
-  iport->s_fd = -1;
+  if (iport->is_sticky) {
+    // keep iport so we can restore the port if this device is reattached
+    iport->s_fd = -1;
+  } else {
+    ht_remove(iport_ht, device_id);
+    iwdp_iport_free(iport);
+  }
   return IWDP_SUCCESS;
 }
 
