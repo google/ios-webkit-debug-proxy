@@ -104,28 +104,47 @@ int sm_connect(const char *hostname, int port) {
     return (ret < 0 ? ret : -1);
   }
   ret = -1;
+  int fd = 0;
   struct addrinfo *res;
   for (res = res0; res; res = res->ai_next) {
-    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd > 0) {
+      close(fd);
+    }
+    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd < 0) {
       continue;
     }
+    // try non-blocking connect, usually succeeds even if unreachable
     int opts = fcntl(fd, F_GETFL);
-    if (opts < 0) {
-      close(fd);
+    if (opts < 0 ||
+        fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0 ||
+        ((connect(fd, res->ai_addr, res->ai_addrlen) < 0) ==
+         (errno != EINPROGRESS))) {
       continue;
     }
-    // TODO use non-blocking connect:
-    //   if (fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) { ... }
-    // but this causes a send error for reachable hosts:
-    //   Socket is not connected
-    if (connect(fd, res->ai_addr, res->ai_addrlen) < 0 &&
-        errno != EINPROGRESS) {
-      close(fd);
+    // try blocking select to verify its reachable
+    struct timeval to;
+    to.tv_sec = 0;
+    to.tv_usec= 500*1000; // arbitrary
+    fd_set error_fds;
+    FD_ZERO(&error_fds);
+    FD_SET(fd, &error_fds);
+    if (fcntl(fd, F_SETFL, opts) < 0) {
+      continue;
+    }
+    int is_error = select(fd + 1, &error_fds, NULL, NULL, &to);
+    if (is_error) {
+      continue;
+    }
+    // success!  set back to non-blocking and return
+    if (fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
       continue;
     }
     ret = fd;
     break;
+  }
+  if (fd > 0 && ret <= 0) {
+    close(fd);
   }
   freeaddrinfo(res0);
   return ret;
