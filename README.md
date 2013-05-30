@@ -5,12 +5,13 @@ Copyright 2012 Google Inc.  <wrightt@google.com>
 iOS WebKit Debug Proxy
 ======================
 
-The ios_webkit_debug_proxy allows HTTP-based [WebKit Remote Debugging Protocol clients](https://developers.google.com/chrome-developer-tools/docs/remote-debugging) to inspect iOS web browsers (MobileSafari and UIWebViews) via Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html).
+The ios_webkit_debug_proxy allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [DevTools UI](https://developers.google.com/chrome-developer-tools/) and [WebKit Remote Debugging Protocol](https://developers.google.com/chrome-developer-tools/docs/remote-debugging).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls, as illustrated below:
 
-The proxy listens on <http://localhost:9221> for requests to list attached iOS devices, which are automatically assigned HTTP ports starting at 9222.  The user can click on a device's link (e.g. <http://localhost:9222>) to list that device's open tabs, then click on a tab link (e.g. <http://localhost:9222/devtools/page/1>) to inspect that tab in the browser's DevTools UI.
+![Alt overview](overview.png "Overview")
 
-Equivalent JSON-formatted APIs are provided for automated clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  An example client is provided in [examples/wdp_client.js](examples/wdp_client.js).
+The proxy detects when iOS devices are attached/removed and provides the current device list on <http://localhost:9221>.  A developer can click on a device's link (e.g. <http://localhost:9222>) to list that device's open tabs, then click on a tab link (e.g. <http://localhost:9222/devtools/page/1>) to inspect that tab in their browser's DevTools UI.
 
+Equivalent JSON-formatted APIs are provided for programmatic clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  See the [examples/README](examples/README.md) for example clients.
 
 Requirements
 ------------
@@ -26,11 +27,11 @@ The proxy requires the following open-source packages:
 Installation
 ------------
 
-On a Mac, use [brew](http://mxcl.github.com/homebrew/):
+On a Mac, it's easiest to use [brew](http://mxcl.github.com/homebrew/):
 
       brew install ios-webkit-debug-proxy
       
-On Linux:
+On Linux or Mac:
 
       sudo apt-get install \
           autoconf automake \
@@ -44,20 +45,28 @@ On Linux:
       make
       sudo make install
 
-On Linux you must run the `usbmuxd` daemon.  The above install adds a udev rule to start the daemon whenever a device is attached.
-
 Usage
 -----
-Start the debugger by running:
+On Linux you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.  To verify that usbmuxd can list your attached device(s), run `idevice_id -l`
+
+To start the proxy, run:
 
        ios_webkit_debug_proxy
 
-Press Ctrl-C to quit. The debugger can be left running as a background process.  Add "-d" for verbose output.
+Press Ctrl-C to quit. The proxy can be left running as a background process.  Add "-d" for verbose output.  Run with "--help" for more options.
 
+The iOS Simulator is supported but, for now, the simulator must be started before the proxy.  The simulator can be started in XCode as usual, or via the command line:
+
+       SIM_DIR=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer
+       "$SIM_DIR/Applications/iPhone Simulator.app/Contents/MacOS/iPhone Simulator" \
+           -SimulateApplication \
+           $SIM_DIR/SDKs/iPhoneSimulator6.1.sdk/Applications/MobileSafari.app/MobileSafari
 
 Configuration
 -------------
-The device_id-to-port assignment defaults to:
+The default configuration works well for most developers.
+
+As noted above, the device_id-to-port assignment defaults to:
 
       :9221 for the device list
       :9222 for the first iOS device that is attached
@@ -65,13 +74,12 @@ The device_id-to-port assignment defaults to:
       ...
       :9322 for the max device
       
-If a port is in use then the next available port will be used, up to
-the range limit.
+If a port is in use then the next available port will be used, up to the range limit.
 
 The port assignment is first-come-first-serve but is preserved if a device
-is detached and reattached, assuming that the debugger is not restarted, e.g.:
+is detached and reattached, assuming that the proxy is not restarted, e.g.:
 
-  1. start the debugger
+  1. start the proxy
   1. the device list gets :9221
   1. attach A gets :9222
   1. attach B gets :9223
@@ -79,131 +87,19 @@ is detached and reattached, assuming that the debugger is not restarted, e.g.:
   1. attach C gets :9224 (not :9222)
   1. reattach A gets :9222 again (not :9225)
 
-The assignment rules can be set via the command line.  The default is
+The port assignment rules can be set via the command line.  The default is
 equivalent to:
 
-      ios_webkit_debug_proxy -c :9221-9322
+      ios_webkit_debug_proxy -c null:9221,:9222-9322
 
-Each comma-separated item must match:
+where "null" represents the device list.  The following example restricts the proxy to
+a single device and port:
 
-      [40-char-hex or "*" or "null"] [" " or ":""] min_port[-max_port]
-
-where "null" represents the device list and "*" is the same as "".
-Here are some examples:
-
-      # monitor a specific device
       ios_webkit_debug_proxy -c 4ea8dd11e8c4fbc1a2deadbeefa0fd3bbbb268c7:9227
-      
-      # monitor all devices but disable the device list
-      ios_webkit_debug_proxy -c null:-1,:9300-9400
-      
-To read lines from a config file, use "-c FILENAME".
 
-
-Source
-------
-
-- [src/ios_webkit_debug_proxy_main.c](src/ios_webkit_debug_proxy_main.c)   
-   \- The "main"   
-
-- [src/ios_webkit_debug_proxy.c](src/ios_webkit_debug_proxy.c)    
-   \- WebInspector to WebKit Remote Debugging Protocol translator   
-   \- See [examples/wdp_client.js](examples/wdp_client.js) and <http://localhost:9221>   
-
-- [src/webinspector.c](src/webinspector.c)   
-   \- iOS WebInspector library   
-   \- See [examples/wi_script.c](examples/wi_script.c)   
-
-- [src/device_listener.c](src/device_listener.c)   
-   \- iOS device add/remove listener   
-   \- See [examples/dl_client.c](examples/dl_client.c)   
-
-- [src/websocket.c](src/websocket.c)   
-   \- A generic WebSocket library   
-   \- Uses base64.c and sha1.c from [PolarSSL](http://www.polarssl.org)   
-   \- See [examples/ws_echo1.c](examples/ws_echo1.c) and [examples/ws_echo2.c](examples/ws_echo2.c)
-
-- Utilities:   
-   \- [src/char_buffer.c](src/char_buffer.c) byte buffer   
-   \- [src/hash_table.c](src/hash_table.c) dictionary   
-   \- [src/port_config.c](src/port_config.c) parses device_id:port config files   
-   \- [src/socket_manager.c](src/socket_manager.c) select-based socket controller   
-
+For more information, run the proxy with "--help".
 
 Design
 ------
 
-The high-level design is shown below:
-
-![Alt overview](overview.png "Overview")
-
-The various clients are shown below:
-
-![Alt clients](clients.png "Clients")
-
-
-The major components of the ios_webkit_debug_proxy are:
-
-  1. A device_listener that listens for iOS device add/remove events
-  1. A (port, webinspector) pair for each device, e.g.:   
-     - [(port 9222 <--> iphoneX's inspector),
-     -  (port 9223 <--> iphoneY's inspector), ...]
-  1. Zero or more active WebSocket clients, e.g.:
-     - [websocketA is connected to :9222/devtools/page/7, ...]
-  1. A socket_manager that handles all the socket I/O
-
-
-The code is object-oriented via the use of structs and function pointers.
-For example, the device_listener struct defines two "public API" functions:
-
-    dl_status (*start)(dl_t self);
-    dl_status (*on_recv)(dl_t self, const char *buf, );
-
-and three "abstract" callback functions:
-
-    dl_status (*send)(dl_t self, const char *buf, size_t length);
-    dl_status (*on_attach)(dl_t self, const char *device_id);
-    dl_status (*on_detach)(dl_t self, const char *device_id);
-
-plus a field for client use:
-
-    void *state;
-
-For example, [examples/dl_client.c](examples/dl_client.c) creates a listener and sets the missing callbacks:
-
-    int fd = dl_connect();
-    dl_t dl = dl_new(); // sets the "start" and "on_recv" functions
-    dl->state = fd;     // for use by "my_send"
-    dl->send = my_send; // --> send((int)dl->state, buf, length);
-    dl->on_attach = my_on_attach; // --> printf("%s", device_id);
-    dl->on_detach = my_on_detach; // --> ditto
-
-then does:
-
-    dl->start();
-
-Lastly, the client forwards all socket input to the listener's "on_recv"
-handler:
-
-    char buf[1024];
-    while (1) {
-       int len = recv(fd, buf, 1024);
-       if (dl->on_recv(dl, buf, len)) break;
-    }
-
-where "on_recv" buffers the input and calls our "my_on_message" when it has a
-full message.
-
-Note that the "on_recv" and "send" functions abstract the I/O from the
-interface, which simplifies debugging and unit testing.
-
-
-The detailed design is shown below:
-
-![Alt design](design.png "Design")
-
-Lines in red are controlled by the main "ios_webkit_debug_proxy".  For example, although the figure shows a direct red line from the socket_manager's "on_recv" to the ios_webkit_debug_proxy's handler, this is implemented as a callback through ios_webkit_debug_proxy_main's "iwdpm_on_recv(...)".  This design isolate the components from one another and simplifies both offline and per-component unit testing.
-
-
-The code is single-threaded and uses non-blocking I/O.  Instead of having a thread per socket that does blocking reads, the single  socket_manager's non-blocking select forwards data to the "on_recv" function of websocket/webinspector/etc.  This improves system scalability and makes it easier to debug and unit test.
-
+See [design.md](design.md) for an overview of the source layout and architecture.
