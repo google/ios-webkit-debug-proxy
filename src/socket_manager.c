@@ -174,7 +174,7 @@ sm_status sm_add_fd(sm_t self, int fd, void *value, bool is_server) {
   // is_server == getsockopt(..., SO_ACCEPTCONN, ...)?
   sm_on_debug(self, "ss.add%s_fd(%d)", (is_server ? "_server" : ""), fd);
   FD_SET(fd, my->all_fds);
-  FD_SET(fd, my->send_fds);
+  FD_CLR(fd, my->send_fds); // only set if blocked
   FD_SET(fd, my->recv_fds);
   FD_CLR(fd, my->tmp_send_fds);
   FD_CLR(fd, my->tmp_recv_fds);
@@ -265,6 +265,7 @@ sm_status sm_send(sm_t self, int fd, void *value, const char *data,
     sendq->next = newq;
   } else {
     ht_put(my->fd_to_sendq, HT_KEY(fd), newq);
+    FD_SET(fd, my->send_fds);
   }
   sm_on_debug(self, "ss.sendq<%p> new fd=%d recv_fd=%d length=%zd"
       ", prev=<%p>", newq, fd, curr_recv_fd, tail - head, sendq);
@@ -335,6 +336,9 @@ void sm_resend(sm_t self, int fd) {
     self->on_sent(self, fd, sendq->value, sendq->begin, tail - sendq->begin);
     sm_sendq_t nextq = sendq->next;
     ht_put(my->fd_to_sendq, HT_KEY(fd), nextq);
+    if (!nextq) {
+      FD_CLR(fd, my->send_fds);
+    }
     int recv_fd = sendq->recv_fd;
     if (recv_fd && FD_ISSET(recv_fd, my->all_fds)) {
       // if no other sendq's match this blocked recv_fd, re-enable it
@@ -420,11 +424,14 @@ int sm_select(sm_t self, int timeout_secs) {
   for (fd = 0; fd <= my->max_fd && num_left > 0; fd++) {
     bool can_send = FD_ISSET(fd, my->tmp_send_fds);
     bool can_recv = FD_ISSET(fd, my->tmp_recv_fds);
-    if (!can_send && !can_recv) {
+    bool is_fail = FD_ISSET(fd, my->tmp_fail_fds);
+    if (!can_send && !can_recv && !is_fail) {
       continue;
     }
     num_left--;
-    if (FD_ISSET(fd, my->server_fds)) {
+    if (is_fail) {
+      self->remove_fd(self, fd);
+    } else if (FD_ISSET(fd, my->server_fds)) {
       sm_accept(self, fd);
     } else {
       if (can_send) {
