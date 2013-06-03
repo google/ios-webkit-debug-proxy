@@ -99,6 +99,28 @@ a single device and port:
 
 For more information, run the proxy with "--help".
 
+### Specifying the DevTools URL
+
+It is possible to specify the DevTools URL to be used using the `-f` or `--frontend` argument
+followed by the DevTools frontend UI path or URL you wish to use. E.g:
+
+      ios_webkit_debug_proxy -f http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html    
+
+Note that the above appspot URL is actually the default path used if no DevTools URL is specified.
+
+E.g. to use a local WebKit checkout:
+
+      ios_webkit_debug_proxy -f /usr/local/WebCore/inspector/front-end/inspector.html
+
+E.g. to use a remote server:
+
+      ios_webkit_debug_proxy -f http://foo.com:1234/bar/inspector.html
+   
+ The value must end in ".html"
+ 
+ Similarly, to disable the DevTools frontend completely you can pass the `--no-frontend` argument.
+ 
+
 Design
 ------
 
