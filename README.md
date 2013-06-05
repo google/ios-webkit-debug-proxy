@@ -99,27 +99,39 @@ a single device and port:
 
 For more information, run the proxy with "--help".
 
-### Specifying the DevTools URL
+### Specifying the DevTools UI URL
 
-It is possible to specify the DevTools URL to be used using the `-f` or `--frontend` argument
-followed by the DevTools frontend UI path or URL you wish to use. E.g:
+By default, the DevTools UI "frontend" HTML, JS, and image files are proxied from:
 
-      ios_webkit_debug_proxy -f http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html    
+      http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html
 
-Note that the above appspot URL is actually the default path used if no DevTools URL is specified.
-
-E.g. to use a local WebKit checkout:
+You can use the `-f` argument to specify different source, e.g. a local
+[WebKit checkout](https://chromium.googlesource.com/chromium/blink.git/+/master/Source/devtools/):
 
       ios_webkit_debug_proxy -f /usr/local/WebCore/inspector/front-end/inspector.html
 
-E.g. to use a remote server:
+or a remote server:
 
       ios_webkit_debug_proxy -f http://foo.com:1234/bar/inspector.html
-   
- The value must end in ".html"
+
+The value must end in ".html"
  
- Similarly, to disable the DevTools frontend completely you can pass the `--no-frontend` argument.
+To disable the frontend proxy, use the `--no-frontend` argument.
  
+Or, instead of using the proxied DevTools UI files, you can use Chrome's local
+"chrome-devtools:" resource files if you know the device port and page number,
+e.g.:
+
+      chrome-devtools://devtools/devtools.html?host=localhost:9222&page=1
+
+Ideally we could use `-f chrome-devtools://devtools/devtools.html`, but Chrome's
+sandbox blocks the generated links with a JavaScript console error:
+
+      Not allowed to load local resource: chrome-devtools://...
+
+even if you launch Chrome with
+[--allow-file-access-from-files](https://code.google.com/p/chromium/codesearch#chromium/src/content/browser/fileapi/browser_file_system_helper.cc&l=33).
+
 
 Design
 ------

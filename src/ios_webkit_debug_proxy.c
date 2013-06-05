@@ -194,7 +194,7 @@ void iwdp_ipage_free(iwdp_ipage_t ipage);
 int iwdp_ipage_cmp(const void *a, const void *b);
 char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     const char *device_id, const char *device_name,
-    const char *frontend_file, const char *host, int port);
+    const char *frontend_url, const char *host, int port);
 
 // file extension to Content-Type
 const char *EXT_TO_MIME[][2] = {
@@ -651,21 +651,28 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
   char *content;
   if (iport->device_id) {
     const char *fe_url = my->frontend;
-    const char *fe_file = NULL;
-    if (fe_url) {
-      const char *fe_proto = strstr(fe_url, "://");
+    char *frontend_url = NULL;
+    if (fe_url && strncasecmp(fe_url, "chrome-devtools://", 18)) {
+      // allow chrome-devtools links, even though Chrome's sandbox blocks them:
+      //   Not allowed to load local resource: chrome-devtools://...
+      // Maybe a future Chrome flag (TBD?) will permit this.
+      frontend_url = strdup(fe_url);
+    } else if (fe_url) {
       const char *fe_path = (fe_proto ? fe_proto + 3 : fe_url);
       const char *fe_sep = strrchr(fe_path, '/');
-      fe_file = (fe_sep ? (strlen(fe_sep) > 1 ? fe_sep + 1 : NULL) : fe_path);
+      const char *fe_file = (fe_sep ? (strlen(fe_sep) > 1 ? fe_sep + 1 : NULL) :
+          fe_path);
       if (!fe_file) {
         self->on_error(self, "Ignoring invalid frontend: %s\n", fe_url);
       }
+      asprintf(&frontend_url, "/devtools/%s", fe_file);
     }
     ht_t ipage_ht = (iport->iwi ? iport->iwi->page_num_to_ipage : NULL);
     iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
     content = iwdp_ipages_to_text(ipages, want_json,
-        iport->device_id, iport->device_name, fe_file, NULL, iport->port);
+        iport->device_id, iport->device_name, frontend_url, NULL, iport->port);
     free(ipages);
+    free(frontend_url);
   } else {
     iwdp_iport_t *iports = (iwdp_iport_t *)ht_values(my->device_id_to_iport);
     content = iwdp_iports_to_text(iports, want_json, NULL);
@@ -1618,7 +1625,7 @@ int iwdp_ipage_cmp(const void *a, const void *b) {
  */
 char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     const char *device_id, const char *device_name,
-    const char *frontend_file, const char *host, int port) {
+    const char *frontend_url, const char *host, int port) {
   // count pages
   size_t n = 0;
   const iwdp_ipage_t *ipp;
@@ -1639,9 +1646,9 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
   for (ipp = ipages; *ipp; ipp++) {
     iwdp_ipage_t ipage = *ipp;
     char *href = NULL;
-    if (frontend_file) {
-      asprintf(&href, "/devtools/%s?host=%s:%d&page=%d",
-          frontend_file, (host ? host : "localhost"), port, ipage->page_num);
+    if (frontend_url) {
+      asprintf(&href, "%s?host=%s:%d&page=%d", frontend_url,
+          (host ? host : "localhost"), port, ipage->page_num);
     }
     char *s = NULL;
     if (want_json) {
