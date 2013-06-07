@@ -658,6 +658,7 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
       // Maybe a future Chrome flag (TBD?) will permit this.
       frontend_url = strdup(fe_url);
     } else if (fe_url) {
+      const char *fe_proto = strstr(fe_url, "://");
       const char *fe_path = (fe_proto ? fe_proto + 3 : fe_url);
       const char *fe_sep = strrchr(fe_path, '/');
       const char *fe_file = (fe_sep ? (strlen(fe_sep) > 1 ? fe_sep + 1 : NULL) :
