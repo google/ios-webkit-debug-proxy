@@ -215,7 +215,7 @@ const char *EXT_TO_MIME[][2] = {
   {"html", "text/html; charset=UTF-8"},
   {"ico", "image/x-icon"},
   {"js", "application/javascript"},
-  {"json", "application/json"},
+  {"json", "application/json; charset=UTF-8"},
   {"png", "image/png; charset=binary"},
   {"txt", "text/plain"},
 };
