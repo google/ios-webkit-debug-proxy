@@ -212,7 +212,7 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
 const char *EXT_TO_MIME[][2] = {
   {"css", "text/css"},
   {"gif", "image/gif; charset=binary"},
-  {"html", "text/html; charset=ISO-8859-1"},
+  {"html", "text/html; charset=UTF-8"},
   {"ico", "image/x-icon"},
   {"js", "application/javascript"},
   {"json", "application/json"},
