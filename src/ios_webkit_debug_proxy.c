@@ -652,7 +652,7 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
   if (iport->device_id) {
     const char *fe_url = my->frontend;
     char *frontend_url = NULL;
-    if (fe_url && strncasecmp(fe_url, "chrome-devtools://", 18)) {
+    if (fe_url && !strncasecmp(fe_url, "chrome-devtools://", 18)) {
       // allow chrome-devtools links, even though Chrome's sandbox blocks them:
       //   Not allowed to load local resource: chrome-devtools://...
       // Maybe a future Chrome flag (TBD?) will permit this.
