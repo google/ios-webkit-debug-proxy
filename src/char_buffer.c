@@ -232,3 +232,56 @@ int cb_asprint(char **ret, const char *buf, ssize_t length,
   return cb_sprint(*ret, buf, length, max_width, max_lines);
 }
 
+int hex2int(char c) {
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  else if (c >= 'a' && c <= 'f')
+    return 10 + c - 'a';
+  else if (c >= 'A' && c <= 'F')
+    return 10 + c - 'A';
+  else
+    return -1;
+}
+
+int cb_sscan(char *to_buf, size_t *to_length, const char *buf) {
+  if (!to_buf || !to_length || !buf) {
+    return -1;
+  }
+  *to_length = 0;
+  const char *f = buf;
+  char *t = to_buf;
+  while (*f) {
+    for (; *f == ' '; f++) {
+    }
+    while (*f != ' ' && *f != '\n') {
+      int h0 = (*f ? hex2int(*f++) : -1);
+      int h1 = (*f ? hex2int(*f++) : -1);
+      char ch = (*f ? *f++ : '\0');
+      if (h0 < 0 || h1 < 0 || ch != ' ') {
+        return -1;
+      }
+      *t++ = (h0 << 4) | h1;
+      *to_length += 1;
+    }
+    if (*f == ' ') {
+      while (*++f && *f != '\n') {
+      }
+    }
+    if (*f && *f++ != '\n') {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+int cb_asscan(char **ret, size_t *to_length, const char *buf) {
+  if (!ret || !*ret || !to_length || !buf) {
+    return -1;
+  }
+  *ret = (char *)calloc(strlen(buf) + 1, sizeof(char));
+  int rval = cb_sscan(*ret, to_length, buf);
+  if (*ret && to_length) {
+    *ret = (char*)realloc(*ret, *to_length * sizeof(char));
+  }
+  return rval;
+}
