@@ -205,7 +205,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
   };
   const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
   const char *DEFAULT_FRONTEND =
-     "http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html";
+     "chrome-devtools://devtools/bundled/devtools.html";
 
   self->config = strdup(DEFAULT_CONFIG);
   self->frontend = strdup(DEFAULT_FRONTEND);
@@ -245,27 +245,23 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
     char *name = strrchr(argv[0], '/');
     printf(
         "Usage: %s [OPTIONS]\n"
-        "iOS WebKit Remote Debugging Protocol Proxy.\n"
+        "iOS Remote WebInspector Proxy.\n"
         "\n"
-        "  -c, --config CSV\t[UDID]:port[-port] config(s), defaults to:\n"
-        "          %s\n"
-        "        which will list devices (\"null:\") on port 9221 and assign\n"
-        "        all other devices (\":\") to the next unused port in the\n"
-        "        9222-9322 range, in the (somewhat random) order that the\n"
-        "        devices are detected.\n"
-        "        E.g. to track a single device with a specific port:\n"
-        "          4ea8dd11e8c4fbc1a2deadbeefa0fd3bbbb268c7:9227\n"
-        "        The value can be the path to a file in the above format.\n"
+        "  -c, --config CSV\tUDID-to-port(s) configuration.\n"
+        "      Defaults to \"%s\", which lists devices on HTTP\n"
+        "      port 9221 and assigns attached iOS devices to ports 9222-9322.\n"
+        "      The value can be the path to a file in the above format.\n"
         "\n"
-        "  -f, --frontend URL\tDevTools frontend UI path or URL, defaults to:\n"
-        "          %s\n"
-        "        E.g. to use a local WebKit checkout:\n"
-        "          /usr/local/WebCore/inspector/front-end/inspector.html\n"
-        "        E.g. to use a remote server:\n"
-        "          http://foo.com:1234/bar/inspector.html\n"
-        "        The value must end in \".html\"\n"
+        "  -f, --frontend URL\tDevTools frontend UI path or URL.\n"
+        "      Defaults to Chrome's built-in inspector:\n"
+        "        %s\n"
+        "      Also supports a local WebKit checkout, e.g.:\n"
+        "        /usr/local/WebCore/inspector/front-end/inspector.html\n"
+        "      or a remote copy of the inspector pages, e.g.:\n"
+        "        http://chrome-devtools-frontend.appspot.com/static/"
+        "18.0.1025.74/devtools.html\n"
         "\n"
-        "  --no-frontend \tDisable the DevTools frontend.\n"
+        "  -F, --no-frontend\tDisable the DevTools frontend.\n"
         "\n"
         "  -d, --debug\t\tEnable debug output.\n"
         "  -h, --help\t\tPrint this usage information.\n"

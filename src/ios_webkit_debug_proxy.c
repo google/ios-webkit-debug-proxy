@@ -114,6 +114,7 @@ struct iwdp_iwi_struct {
   int wi_fd;
   char *connection_id;
 
+  bool connected;
   uint32_t max_page_num; // > 0
   ht_t app_id_to_true;   // set of app_ids
   ht_t page_num_to_ipage;
@@ -216,7 +217,7 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage);
 int iwdp_update_string(char **old_value, const char *new_value);
 
 //
-// device_listener
+// logging
 //
 
 iwdp_status iwdp_on_error(iwdp_t self, const char *format, ...) {
@@ -227,6 +228,30 @@ iwdp_status iwdp_on_error(iwdp_t self, const char *format, ...) {
   va_end(args);
   return IWDP_ERROR;
 }
+
+void iwdp_log_connect(iwdp_iport_t iport) {
+  if (iport->device_id) {
+    printf("Connected :%d to %s (%s)\n", iport->port, iport->device_name,
+        iport->device_id);
+  } else {
+    printf("Listing devices on :%d\n", iport->port);
+  }
+}
+
+void iwdp_log_disconnect(iwdp_iport_t iport) {
+  if (iport->iwi && iport->iwi->connected) {
+    printf("Disconnected :%d from %s (%s)\n", iport->port,
+        iport->device_name, iport->device_id);
+  } else {
+    printf("Unable to connect to %s (%s)\n  Please"
+        " verify that Settings > Safari > Advanced > Web Inspector = ON\n",
+        iport->device_name, iport->device_id);
+  }
+}
+
+//
+// device_listener
+//
 
 dl_status iwdp_listen(iwdp_t self, const char *device_id) {
   iwdp_private_t my = self->private_state;
@@ -245,8 +270,7 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
   int max_port = -1;
   if (self->select_port && self->select_port(self, device_id,
         &port, &min_port, &max_port)) {
-    return (device_id ? self->on_error(self, "select_port(%) failed",
-        device_id) : DL_SUCCESS);
+    return (device_id ? DL_ERROR : DL_SUCCESS);
   }
   if (port < 0 && (min_port < 0 || max_port < min_port)) {
     return (device_id ? DL_ERROR : DL_SUCCESS); // ignore this device
@@ -295,6 +319,9 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
   }
   iport->s_fd = s_fd;
   iport->port = port;
+  if (!device_id) {
+    iwdp_log_connect(iport);
+  }
   return DL_SUCCESS;
 }
 
@@ -485,7 +512,6 @@ iwdp_status iwdp_on_recv(iwdp_t self, int fd, void *value,
   }
 }
 
-
 iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
   iwdp_private_t my = self->private_state;
   // check pointer to this iport
@@ -508,6 +534,7 @@ iwdp_status iwdp_iport_close(iwdp_t self, iwdp_iport_t iport) {
   // close iwi
   iwdp_iwi_t iwi = iport->iwi;
   if (iwi) {
+    iwdp_log_disconnect(iport);
     iwi->iport = NULL;
     iport->iwi = NULL;
     if (iwi->wi_fd > 0) {
@@ -554,10 +581,13 @@ iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
 
 iwdp_status iwdp_iwi_close(iwdp_t self, iwdp_iwi_t iwi) {
   iwdp_private_t my = self->private_state;
-  // clear pointer to this iwi
   iwdp_iport_t iport = iwi->iport;
-  if (iport && iport->iwi) {
-    iport->iwi = NULL;
+  if (iport) {
+    iwdp_log_disconnect(iport);
+    // clear pointer to this iwi
+    if (iport->iwi) {
+      iport->iwi = NULL;
+    }
   }
   // free pages
   ht_t ipage_ht = iwi->page_num_to_ipage;
@@ -1086,6 +1116,8 @@ wi_status iwdp_send_packet(wi_t wi, const char *packet, size_t length) {
 
 wi_status iwdp_on_reportSetup(wi_t wi) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+  iwi->connected = true;
+  iwdp_log_connect(iwi->iport);
   return WI_SUCCESS;
 }
 
@@ -1684,16 +1716,25 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     }
   }
 
-  char *header = NULL;
-  if (want_json) {
-    header = "[";
-  } else {
+  char *header = "[";
+  char *footer = "]";
+  if (!want_json) {
     asprintf(&header,
         "<html><head><title>%s</title></head>"
         "<body>Inspectable pages for <a title=\"%s\">%s</a>:<p><ol>\n",
         device_name, device_id, device_name);
+    bool is_chrome_dev = (sum_len > 0 && frontend_url &&
+        !strncasecmp(frontend_url, "chrome-devtools://", 18));
+    asprintf(&footer, "</ol>%s</body></html>", (is_chrome_dev ?
+        "<p><b>Note:</b> Your browser may block<sup><a href=\""
+        "https://code.google.com/p/chromium/issues/detail?id=87815"
+        "\"1\">1,</a><a href=\""
+        "https://codereview.chromium.org/12621008#msg11"
+        "\">2</a></sup> the above links with JavaScript console error:<br><tt>"
+        "&nbsp;&nbsp;Not allowed to load local resource: chrome-devtools://..."
+        "</tt><br>To open a link: right-click on the link (control-click on"
+        " Mac), 'Copy Link Address', and paste it into address bar." : ""));
   }
-  const char *footer = (want_json ? "]" : "</ol></body></html>");
 
   // concat
   size_t length = strlen(header) + sum_len + strlen(footer);
@@ -1709,6 +1750,7 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
   }
   if (!want_json) {
     free(header);
+    free(footer);
   }
   free(items);
   return ret;
