@@ -55,6 +55,8 @@ To start the proxy, run:
 
 Press Ctrl-C to quit. The proxy can be left running as a background process.  Add "-d" for verbose output.  Run with "--help" for more options.
 
+The devices should be listed by default at `localhost:9221`. In order to access the devices at their respective ports, the MobileSafari must enable web inspection at `Settings > Safari > Web Inspector`.
+
 The iOS Simulator is supported but, for now, the simulator must be started before the proxy.  The simulator can be started in XCode as usual, or via the command line:
 
        SIM_DIR=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer
