@@ -77,6 +77,7 @@ enum connection_type {
   CONNECTION_USBMUXD = 1
 };
 struct idevice_connection_private {
+  char *udid;  // added in v1.1.6
   enum connection_type type;
   void *data;
   void *ssl_data;
@@ -87,18 +88,16 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
   if (!connection || !to_fd) {
     return WI_ERROR;
   }
-  // extract the connection fd
-  idevice_connection_private *connection_private = 
-    (idevice_connection_private *) connection;
-  if (!connection ||
-      sizeof(*connection) != sizeof(idevice_connection_private) ||
-      connection_private->type != CONNECTION_USBMUXD ||
-      connection_private->data <= 0 ||
-      connection_private->ssl_data) {
-    perror("Invalid idevice_connection struct?");
+  idevice_connection_private *c = (
+      (sizeof(*connection) == sizeof(idevice_connection_private)) ?
+      (idevice_connection_private *) connection : NULL);
+  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) {
+    perror("Invalid idevice_connection struct.  Please verify that "
+        __FILE__ "'s idevice_connection_private matches your version of"
+        " libimbiledevice/src/idevice.h");
     return WI_ERROR;
   }
-  int fd = (int)(long)connection_private->data;
+  int fd = (int)(long)c->data;
   struct stat fd_stat;
   if (fstat(fd, &fd_stat) < 0 || !S_ISSOCK(fd_stat.st_mode)) {
     perror("idevice_connection fd is not a socket?");
