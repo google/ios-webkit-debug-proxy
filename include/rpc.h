@@ -20,24 +20,8 @@ typedef uint8_t wi_status;
 #define WI_ERROR 1
 #define WI_SUCCESS 0
 
-
-// Create a webinspector connection.
-//
-// @param device_id iOS 40-character device id, or NULL for any device
-// @param to_device_id selected device_id (copy of device_id if set)
-// @param to_device_name selected device name
-// @param recv_timeout Set the socket receive timeout for future recv calls:
-//    negative for non-blocking,
-//    zero for the system default (5000 millis), or
-//    positive for milliseconds.
-// @result fd, or -1 for error
-int wi_connect(const char *device_id, char **to_device_id,
-               char **to_device_name, int recv_timeout);
-
-
 // Create a UUID, e.g. "4B2550E4-13D6-4902-A48E-B45D5B23215B".
 wi_status wi_new_uuid(char **to_uuid);
-
 
 struct wi_app_struct {
   char *app_id;
@@ -45,7 +29,6 @@ struct wi_app_struct {
   bool is_proxy;
 };
 typedef struct wi_app_struct *wi_app_t;
-
 
 struct wi_page_struct {
   uint32_t page_id;
@@ -55,14 +38,10 @@ struct wi_page_struct {
 };
 typedef struct wi_page_struct *wi_page_t;
 
-
 struct wi_struct;
 typedef struct wi_struct *wi_t;
 wi_t wi_new(bool is_sim);
 void wi_free(wi_t self);
-
-struct wi_private;
-typedef struct wi_private *wi_private_t;
 
 // iOS WebInspector.
 struct wi_struct {
@@ -100,7 +79,6 @@ struct wi_struct {
             uint32_t page_id, const char *sender_id);
 
     void *state;
-    bool *is_debug;
 
     //
     // Set these callbacks:
@@ -126,10 +104,8 @@ struct wi_struct {
             const char *app_id, const char *dest_id,
             const char *data, size_t length);
 
-
     // For internal use only:
     wi_status (*on_error)(wi_t self, const char *format, ...);
-    wi_private_t private_state;
 };
 
 
