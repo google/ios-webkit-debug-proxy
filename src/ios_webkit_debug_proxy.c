@@ -15,10 +15,12 @@
 #include <string.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"
+#include "rpc.h"
 #include "webinspector.h"
 #include "websocket.h"
 
@@ -113,6 +115,8 @@ struct iwdp_iwi_struct {
   wi_t wi;
   int wi_fd;
   char *connection_id;
+
+  rpc_t rpc;  // plist parser
 
   bool connected;
   uint32_t max_page_num; // > 0
@@ -429,9 +433,9 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
   iwi->wi_fd = wi_fd;
 
   // start inspector
-  wi_new_uuid(&iwi->connection_id);
-  wi_t wi = iwi->wi;
-  if (wi->send_reportIdentifier(wi, iwi->connection_id)) {
+  rpc_new_uuid(&iwi->connection_id);
+  rpc_t rpc = iwi->rpc;
+  if (rpc->send_reportIdentifier(rpc, iwi->connection_id)) {
     self->remove_fd(self, iport->s_fd);
     self->on_error(self, "Unable to report to inspector %s",
         device_id);
@@ -463,7 +467,7 @@ iwdp_status iwdp_iport_accept(iwdp_t self, iwdp_iport_t iport, int ws_fd,
   iwdp_iws_t iws = iwdp_iws_new(self->is_debug);
   iws->iport = iport;
   iws->ws_fd = ws_fd;
-  wi_new_uuid(&iws->ws_id);
+  rpc_new_uuid(&iws->ws_id);
   ht_put(iport->ws_id_to_iws, iws->ws_id, iws);
   *to_iws = iws;
   return IWDP_SUCCESS;
@@ -622,6 +626,7 @@ iwdp_status iwdp_ifs_close(iwdp_t self, iwdp_ifs_t ifs) {
 
 iwdp_status iwdp_idl_close(iwdp_t self, iwdp_idl_t idl) {
   // TODO rm_fd all device_id_to_iport s_fds?!
+  return IWDP_SUCCESS;
 }
 
 iwdp_status iwdp_on_close(iwdp_t self, int fd, void *value, bool is_server) {
@@ -1078,8 +1083,8 @@ ws_status iwdp_on_frame(ws_t ws,
         free(s);
         return ret;
       }
-      wi_t wi = iwi->wi;
-      return wi->send_forwardSocketData(wi,
+      rpc_t rpc = iwi->rpc;
+      return rpc->send_forwardSocketData(rpc,
           iwi->connection_id,
           ipage->app_id, ipage->page_id, ipage->sender_id,
           payload_data, payload_length);
@@ -1110,28 +1115,39 @@ wi_status iwdp_send_packet(wi_t wi, const char *packet, size_t length) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
   iwdp_t self = iwi->iport->self;
   return (self->send(self, iwi->wi_fd, packet, length) ?
-      wi->on_error(wi, "Unable to send %zd bytes to inspector", length) :
+      self->on_error(self, "Unable to send %zd bytes to inspector", length) :
       WI_SUCCESS);
 }
 
-wi_status iwdp_on_reportSetup(wi_t wi) {
-  iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
-  iwi->connected = true;
-  iwdp_log_connect(iwi->iport);
-  return WI_SUCCESS;
+wi_status iwdp_recv_plist(wi_t wi, const plist_t rpc_dict) {
+  rpc_t rpc = ((iwdp_iwi_t)wi->state)->rpc;
+  return rpc->recv_plist(rpc, rpc_dict);
 }
 
-wi_status iwdp_add_app_id(wi_t wi, const char *app_id) {
-  iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+rpc_status iwdp_send_plist(rpc_t rpc, const plist_t rpc_dict) {
+  wi_t wi = ((iwdp_iwi_t)rpc->state)->wi;
+  return wi->send_plist(wi, rpc_dict);
+}
+
+rpc_status iwdp_on_reportSetup(rpc_t rpc) {
+  iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
+  iwi->connected = true;
+  iwdp_log_connect(iwi->iport);
+  return RPC_SUCCESS;
+}
+
+rpc_status iwdp_add_app_id(rpc_t rpc, const char *app_id) {
+  iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   ht_t app_id_ht = iwi->app_id_to_true;
   if (ht_get_value(app_id_ht, app_id)) {
-    return WI_SUCCESS;
+    return RPC_SUCCESS;
   }
   ht_put(app_id_ht, strdup(app_id), HT_VALUE(1));
-  return wi->send_forwardGetListing(wi, iwi->connection_id, app_id);
+  return rpc->send_forwardGetListing(rpc, iwi->connection_id, app_id);
 }
-wi_status iwdp_on_applicationConnected(wi_t wi, const wi_app_t app) {
-  return iwdp_add_app_id(wi, app->app_id);
+
+rpc_status iwdp_on_applicationConnected(rpc_t rpc, const rpc_app_t app) {
+  return iwdp_add_app_id(rpc, app->app_id);
 }
 
 ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
@@ -1144,10 +1160,11 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
   }
   wi_t wi = iwi->wi;
   iwdp_iport_t iport = iwi->iport;
+  iwdp_t self = (iport ? iport->self : NULL);
   iwdp_iws_t iws2 = ipage->iws;
   if (iws2) {
     // steal this page from our other client, as if the page went away
-    wi->on_error(wi, "Taking page %d/%d from local %s to %s",
+    self->on_error(self, "Taking page %d/%d from local %s to %s",
         iport->port, ipage->page_num, iws2->ws_id, iws->ws_id);
     iwdp_stop_devtools(ipage);
     iws2->page_num = ipage->page_num;
@@ -1160,10 +1177,11 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
        strcmp(ipage->connection_id, iwi->connection_id)) {
     // steal this page from the other (not-us, maybe dead?) inspector.
     // We also might need to send_forwardDidClose on their behalf...
-    wi->on_error(wi, "Taking page %d/%d from remote %s",
+    self->on_error(self, "Taking page %d/%d from remote %s",
         iport->port, ipage->page_num, ipage->connection_id);
   }
-  return wi->send_forwardSocketSetup(wi,
+  rpc_t rpc = iwi->rpc;
+  return rpc->send_forwardSocketSetup(rpc,
       iwi->connection_id,
       ipage->app_id, ipage->page_id, ipage->sender_id);
 }
@@ -1186,16 +1204,14 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
     return WS_ERROR; // internal error?
   }
   iwdp_iwi_t iwi = iport->iwi;
-  if (iwi) {
-    wi_t wi = iwi->wi;
-    if (iwi->connection_id && (!ipage->connection_id ||
-          !strcmp(ipage->connection_id, iwi->connection_id))) {
-      // if ipage->connection_id is NULL, it's likely a normal lag between our
-      // send_forwardSocketSetup and the on_applicationSentListing ack.
-      wi->send_forwardDidClose(wi,
-          iwi->connection_id, ipage->app_id,
-          ipage->page_id, ipage->sender_id);
-    }
+  if (iwi && iwi->connection_id && (!ipage->connection_id ||
+        !strcmp(ipage->connection_id, iwi->connection_id))) {
+    // if ipage->connection_id is NULL, it's likely a normal lag between our
+    // send_forwardSocketSetup and the on_applicationSentListing ack.
+    rpc_t rpc = iwi->rpc;
+    rpc->send_forwardDidClose(rpc,
+        iwi->connection_id, ipage->app_id,
+        ipage->page_id, ipage->sender_id);
   }
   // close the ws_fd?
   iws->ipage = NULL;
@@ -1206,12 +1222,12 @@ ws_status iwdp_stop_devtools(iwdp_ipage_t ipage) {
   return WS_SUCCESS;
 }
 
-wi_status iwdp_remove_app_id(wi_t wi, const char *app_id) {
-  iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+rpc_status iwdp_remove_app_id(rpc_t rpc, const char *app_id) {
+  iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   ht_t app_id_ht = iwi->app_id_to_true;
   char *old_app_id = ht_get_key(app_id_ht, app_id);
   if (!old_app_id) {
-    return WI_SUCCESS;
+    return RPC_SUCCESS;
   }
   ht_remove(app_id_ht, app_id);
   // remove pages with this app_id
@@ -1229,44 +1245,44 @@ wi_status iwdp_remove_app_id(wi_t wi, const char *app_id) {
   free(ipages);
   // free this last, in case old_app_id == app_id
   free(old_app_id);
-  return WI_SUCCESS;
+  return RPC_SUCCESS;
 }
-wi_status iwdp_on_applicationDisconnected(wi_t wi, const wi_app_t app) {
-  return iwdp_remove_app_id(wi, app->app_id);
+rpc_status iwdp_on_applicationDisconnected(rpc_t rpc, const rpc_app_t app) {
+  return iwdp_remove_app_id(rpc, app->app_id);
 }
 
-wi_status iwdp_on_reportConnectedApplicationList(wi_t wi, const wi_app_t *apps) {
-  iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+rpc_status iwdp_on_reportConnectedApplicationList(rpc_t rpc, const rpc_app_t *apps) {
+  iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   ht_t app_id_ht = iwi->app_id_to_true;
 
   // remove old apps
   char **old_app_ids = (char **)ht_keys(app_id_ht);
   char **oa;
   for (oa = old_app_ids; *oa; oa++) {
-    const wi_app_t *a;
+    const rpc_app_t *a;
     for (a = apps; *a && strcmp((*a)->app_id, *oa); a++) {
     }
     if (!*a) {
-      iwdp_remove_app_id(wi, *oa);
+      iwdp_remove_app_id(rpc, *oa);
     }
   }
   free(old_app_ids);
 
   // add new apps
-  const wi_app_t *a;
+  const rpc_app_t *a;
   for (a = apps; *a; a++) {
-    iwdp_add_app_id(wi, (*a)->app_id);
+    iwdp_add_app_id(rpc, (*a)->app_id);
   }
-  return WI_SUCCESS;
+  return RPC_SUCCESS;
 }
 
-wi_status iwdp_on_applicationSentListing(wi_t wi,
-    const char *app_id, const wi_page_t *pages) {
-  iwdp_iwi_t iwi = (iwdp_iwi_t)wi->state;
+rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
+    const char *app_id, const rpc_page_t *pages) {
+  iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   iwdp_iport_t iport = (iwi ? iwi->iport : NULL);
-  iwdp_t self = (iport ? iwi->iport->self : NULL);
+  iwdp_t self = (iport ? iport->self : NULL);
   if (!self) {
-    return wi->on_error(wi, "Inspector has been closed?");
+    return RPC_ERROR;  // Inspector closed?
   }
   if (!ht_get_value(iwi->app_id_to_true, app_id)) {
     return self->on_error(self, "Unknown app_id %s", app_id);
@@ -1275,9 +1291,9 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
   iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
 
   // add new pages
-  const wi_page_t *pp;
+  const rpc_page_t *pp;
   for (pp = pages; *pp; pp++) {
-    const wi_page_t page = *pp;
+    const rpc_page_t page = *pp;
     // find page with this app_id & page_id
     iwdp_ipage_t ipage = NULL;
     iwdp_ipage_t *ipp;
@@ -1304,7 +1320,7 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
       char *s;
       asprintf(&s, "Page %d/%d claimed by remote %s",
           iport->port, ipage->page_id, page->connection_id);
-      wi->on_error(wi, "%s", s);
+      self->on_error(self, "%s", s);
       free(s);
       ipage->iws->ipage = NULL;
     }
@@ -1318,7 +1334,7 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
     if (strcmp(ipage->app_id, app_id)) {
       continue;
     }
-    const wi_page_t *pp;
+    const rpc_page_t *pp;
     for (pp = pages; *pp && (*pp)->page_id != ipage->page_id; pp++) {
     }
     if (!*pp) {
@@ -1329,17 +1345,16 @@ wi_status iwdp_on_applicationSentListing(wi_t wi,
   }
   free(ipages);
 
-  return WI_SUCCESS;
+  return RPC_SUCCESS;
 }
 
-wi_status iwdp_on_applicationSentData(wi_t wi,
+rpc_status iwdp_on_applicationSentData(rpc_t rpc,
     const char *app_id, const char *dest_id,
     const char *data, const size_t length) {
-  iwdp_iport_t iport = ((iwdp_iwi_t)wi->state)->iport;
+  iwdp_iport_t iport = ((iwdp_iwi_t)rpc->state)->iport;
   iwdp_iws_t iws = ht_get_value(iport->ws_id_to_iws, dest_id);
   if (!iws) {
-    // error but don't kill the inspector!
-    return WI_SUCCESS;
+    return RPC_SUCCESS;  // error but don't kill the inspector!
   }
   ws_t ws = iws->ws;
   return ws->send_frame(ws,
@@ -1529,6 +1544,7 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
 void iwdp_iwi_free(iwdp_iwi_t iwi) {
   if (iwi) {
     wi_free(iwi->wi);
+    rpc_free(iwi->rpc);
     // TODO free ht_values?
     free(iwi->connection_id);
     ht_free(iwi->app_id_to_true);
@@ -1546,22 +1562,27 @@ iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug) {
   iwi->type.type = TYPE_IWI;
   iwi->app_id_to_true = ht_new(HT_STRING_KEYS);
   iwi->page_num_to_ipage = ht_new(HT_INT_KEYS);
+  rpc_t rpc = rpc_new();
   wi_t wi = wi_new(is_sim);
-  if (!wi || !iwi->page_num_to_ipage || !iwi->app_id_to_true) {
+  if (!rpc || !wi || !iwi->page_num_to_ipage || !iwi->app_id_to_true) {
     iwdp_iwi_free(iwi);
     return NULL;
   }
-  iwi->wi = wi;
-  wi->send_packet = iwdp_send_packet;
-  wi->on_reportSetup = iwdp_on_reportSetup;
-  wi->on_reportConnectedApplicationList = 
+  rpc->on_reportSetup = iwdp_on_reportSetup;
+  rpc->on_reportConnectedApplicationList =
     iwdp_on_reportConnectedApplicationList;
-  wi->on_applicationConnected = iwdp_on_applicationConnected;
-  wi->on_applicationDisconnected = iwdp_on_applicationDisconnected;
-  wi->on_applicationSentListing = iwdp_on_applicationSentListing;
-  wi->on_applicationSentData = iwdp_on_applicationSentData;
+  rpc->on_applicationConnected = iwdp_on_applicationConnected;
+  rpc->on_applicationDisconnected = iwdp_on_applicationDisconnected;
+  rpc->on_applicationSentListing = iwdp_on_applicationSentListing;
+  rpc->on_applicationSentData = iwdp_on_applicationSentData;
+  rpc->send_plist = iwdp_send_plist;
+  rpc->state = iwi;
+  iwi->rpc = rpc;
+  wi->send_packet = iwdp_send_packet;
+  wi->recv_plist = iwdp_recv_plist;
   wi->state = iwi;
   wi->is_debug = is_debug;
+  iwi->wi = wi;
   return iwi;
 }
 

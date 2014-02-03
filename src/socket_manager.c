@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "char_buffer.h"
 #include "socket_manager.h"
@@ -230,8 +231,8 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   return ret;
 }
 
-sm_status sm_send(sm_t self, int fd, void *value, const char *data,
-    size_t length) {
+sm_status sm_send(sm_t self, int fd, const char *data, size_t length,
+    void* value) {
   sm_private_t my = self->private_state;
   sm_sendq_t sendq = (sm_sendq_t)ht_get_value(my->fd_to_sendq, HT_KEY(fd));
   const char *head = data;
@@ -548,6 +549,7 @@ sm_t sm_new(size_t buf_length) {
   memset(self, 0, sizeof(struct sm_struct));
   self->add_fd = sm_add_fd;
   self->remove_fd = sm_remove_fd;
+  self->send = sm_send;
   self->select = sm_select;
   self->cleanup = sm_cleanup;
   self->private_state = my;

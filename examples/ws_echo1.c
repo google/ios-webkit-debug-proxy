@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define BUF_LEN 1024
 #define PORT 8080
@@ -43,9 +44,7 @@ int main(int argc, char** argv) {
 
   int ret = 0;
   while (1) {
-    struct sockaddr_in remote;
-    int sockaddr_len = sizeof(remote);
-    int fd = accept(sfd, (struct sockaddr*)&remote, &sockaddr_len);
+    int fd = accept(sfd, NULL, NULL);
     if (fd < 0) {
       perror("Accept failed");
       ret = -1;

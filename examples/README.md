@@ -17,7 +17,7 @@ Example Proxy Clients
    \- [wdp_client.js](wdp_client.js) is the command-line equivalent of [wdp_client.html](wdp_client.html).
 
 - C
-   \- [wi_script.c](wi_script.c) is the C equivalent of [wdp_client.js](wdp_client.js).
+   \- [wi_client.c](wi_client.c) a minimal webinspector client.
 
 
 Example System Clients

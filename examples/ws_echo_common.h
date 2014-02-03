@@ -50,4 +50,4 @@ ws_status on_frame(ws_t ws,
 }
 #endif
 
-#endif WS_ECHO_COMMON_H
+#endif  /* WS_ECHO_COMMON_H */

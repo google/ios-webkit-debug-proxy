@@ -26,7 +26,7 @@ intptr_t on_strhash(ht_t ht, const void *key) {
   char *s = (char *)key;
   if (s) {
     int ch;
-    while (ch = *s++) {
+    while ((ch = *s++)) {
       hc = ((hc << 5) + hc) ^ ch;
     }
   }

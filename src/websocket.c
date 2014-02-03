@@ -93,7 +93,7 @@ static char *ws_compute_answer(const char *sec_key) {
   unsigned char hash[20];
   sha1_context ctx;
   sha1_starts(&ctx);
-  sha1_update(&ctx, text, text_length-1);
+  sha1_update(&ctx, (const unsigned char *)text, text_length-1);
   sha1_finish(&ctx, hash);
   free(text);
   text = NULL;
@@ -105,7 +105,7 @@ static char *ws_compute_answer(const char *sec_key) {
   if (!ret) {
     return NULL;
   }
-  if (base64_encode(ret, &length, hash, 20)) {
+  if (base64_encode((unsigned char *)ret, &length, hash, 20)) {
     free(ret);
     return NULL;
   }
@@ -147,7 +147,8 @@ ws_status ws_send_connect(ws_t self,
   if (!sec_key) {
     return self->on_error(self, "Out of memory");
   }
-  if (base64_encode(sec_key, &key_length, sec_ukey, 20)) {
+  if (base64_encode((unsigned char *)sec_key, &key_length,
+      (const unsigned char *)sec_ukey, 20)) {
     free(sec_key);
     return self->on_error(self, "base64_encode failed");
   }
@@ -166,8 +167,8 @@ ws_status ws_send_connect(ws_t self,
   out_tail += sprintf(out_tail,
       "GET %s HTTP/1.1\r\n"
       "Upgrade: WebSocket\r\n"
-      "Connection: Upgrade\r\n",
-      "Sec-WebSocket-Version: 13\r\n",
+      "Connection: Upgrade\r\n"
+      "Sec-WebSocket-Version: 13\r\n"
       "Sec-WebSocket-Key: %s\r\n", resource, sec_key);
   if (protocol) {
     out_tail += sprintf(out_tail, "Sec-WebSocket-Protocol: %s\r\n",
@@ -344,8 +345,8 @@ ws_status ws_send_close(ws_t self, ws_close close_code, const char *reason) {
   if (!data) {
     return WS_ERROR;
   }
-  data[0] = ((close_code >> 8) && 0xFF);
-  data[1] = (close_code && 0xFF);
+  data[0] = ((close_code >> 8) & 0xFF);
+  data[1] = (close_code & 0xFF);
   if (reason) {
     strcpy(data+2, reason);
   }

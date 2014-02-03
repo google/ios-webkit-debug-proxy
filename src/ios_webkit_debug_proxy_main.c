@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"
 #include "port_config.h"
@@ -114,7 +115,7 @@ int iwdpm_connect(iwdp_t iwdp, const char *hostname, int port) {
 }
 iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
-  return sm_send(sm, fd, NULL, data, length);
+  return sm->send(sm, fd, data, length, NULL);
 }
 iwdp_status iwdpm_add_fd(iwdp_t iwdp, int fd, void *value, bool is_server) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;

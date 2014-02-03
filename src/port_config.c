@@ -167,7 +167,7 @@ int pc_add_file(pc_t self, const char *filename) {
   char *line = NULL;
   size_t line_capacity = 0;
   for (line_num = 0; ; line_num++) {
-    size_t len = getline(&line, &line_capacity, f);
+    ssize_t len = getline(&line, &line_capacity, f);
     if (len < 0) break;
     const char *error = pc_add_line(self, line, len);
     if (error) {

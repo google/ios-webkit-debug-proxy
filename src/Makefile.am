@@ -14,6 +14,7 @@ ios_webkit_debug_proxy_SOURCES = ios_webkit_debug_proxy_main.c \
     hash_table.c hash_table.h \
     ios_webkit_debug_proxy.c ios_webkit_debug_proxy.h \
     port_config.c port_config.h \
+    rpc.c rpc.h \
     sha1.c sha1.h \
     socket_manager.c socket_manager.h \
     validate_utf8.h \

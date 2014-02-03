@@ -8,6 +8,7 @@ nobase_include_HEADERS = \
     hash_table.h \
     ios_webkit_debug_proxy.h \
     port_config.h \
+    rpc.h \
     sha1.h \
     socket_manager.h \
     validate_utf8.h \

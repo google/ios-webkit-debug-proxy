@@ -3,7 +3,7 @@
 .deps
 src/ios_webkit_debug_proxy
 examples/dl_client
-examples/wi_script
+examples/wi_client
 examples/ws_echo1
 examples/ws_echo2
 
