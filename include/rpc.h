@@ -1,8 +1,8 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
-// Copyright 2012 Google Inc. wrightt@google.com
+// Copyright 2014 Google Inc. wrightt@google.com
 
 //
-// iOS WebInspector
+// WebInspector Remote Procedure Call formatter.
 //
 
 #ifndef RPC_H
@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 
+#include <plist/plist.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -40,18 +41,20 @@ typedef struct rpc_page_struct *rpc_page_t;
 
 struct rpc_struct;
 typedef struct rpc_struct *rpc_t;
-rpc_t rpc_new(bool is_sim);
+rpc_t rpc_new();
 void rpc_free(rpc_t self);
 
-// iOS WebInspector.
+// WebInspector Remote Procedure Call formatter.
 struct rpc_struct {
 
     //
-    // Use these APIs:
+    // Call these APIs:
     //
 
-    rpc_status (*on_recv)(rpc_t self, const char *buf, ssize_t length);
+    // Calls on_*.
+    rpc_status (*recv_plist)(rpc_t self, const plist_t rpc_dict);
 
+    // Calls send_plist.
     rpc_status (*send_reportIdentifier)(rpc_t self,
             const char *connection_id);
 
@@ -84,7 +87,7 @@ struct rpc_struct {
     // Set these callbacks:
     //
 
-    rpc_status (*send_packet)(rpc_t self, const char *packet, size_t length);
+    rpc_status (*send_plist)(rpc_t self, plist_t rpc_dict);
 
     rpc_status (*on_reportSetup)(rpc_t self);
 

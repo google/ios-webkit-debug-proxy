@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 
+#include <plist/plist.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -46,11 +47,21 @@ typedef struct wi_private *wi_private_t;
 struct wi_struct {
 
     //
-    // Use these APIs:
+    // Call these APIs:
     //
 
+    // Appends an arbitrary number of bytes to our input buffer,
+    // calls recv_packet when the buffer contains one or more packets.
     wi_status (*on_recv)(wi_t self, const char *buf, ssize_t length);
 
+    // Calls recv_plist if the packet is a full plist, otherwise appends
+    // the partial packet to our pending buffer.
+    wi_status (*recv_packet)(wi_t self, const char *packet, ssize_t length);
+
+    // Calls send_packet with the serialized rpc packet(s).
+    wi_status (*send_plist)(wi_t self, const plist_t rpc_dict);
+
+    // Optional state for use in your callbacks.
     void *state;
     bool *is_debug;
 
@@ -58,7 +69,11 @@ struct wi_struct {
     // Set these callbacks:
     //
 
+    // Send a serialized rpc (full or partial).
     wi_status (*send_packet)(wi_t self, const char *packet, size_t length);
+
+    // Receive a deserialized full rpc.
+    wi_status (*recv_plist)(wi_t self, const plist_t rpc_dict);
 
     // For internal use only:
     wi_status (*on_error)(wi_t self, const char *format, ...);

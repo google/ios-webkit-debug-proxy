@@ -200,20 +200,11 @@ wi_status wi_on_debug(wi_t self, const char *message,
    __selector
    __argument
  */
-wi_status wi_send_msg(wi_t self, const char *selector, plist_t args) {
+wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
   wi_private_t my = self->private_state;
-  if (!selector || !args) {
-    return WI_ERROR;
-  }
-  plist_t rpc_dict = plist_new_dict();
-  plist_dict_insert_item(rpc_dict, "__selector", 
-      plist_new_string(selector));
-  plist_dict_insert_item(rpc_dict, "__argument", plist_copy(args));
   char *rpc_bin = NULL;
   uint32_t rpc_len = 0;
   plist_to_bin(rpc_dict, &rpc_bin, &rpc_len);
-  plist_free(rpc_dict);
-  rpc_dict = NULL;
   // if our message is <8k, we'll send a single final_msg,
   // otherwise we'll send <8k partial_msg "chunks" then a final_msg "chunk"
   wi_status ret = WI_ERROR;
@@ -303,16 +294,14 @@ wi_status wi_parse_length(wi_t self, const char *buf, size_t *to_length) {
   return WI_SUCCESS;
 }
 
-wi_status wi_parse_msg(wi_t self, const char *from_buf, size_t length,
-    char **to_selector, plist_t *to_args, bool *to_is_partial) {
+wi_status wi_parse_plist(wi_t self, const char *from_buf, size_t length,
+    plist_t *to_rpc_dict, bool *to_is_partial) {
   wi_private_t my = self->private_state;
-  *to_selector = NULL;
-  *to_args = NULL;
   *to_is_partial = false;
+  *to_rpc_dict = NULL;
 
-  plist_t rpc_dict = NULL;
   if (my->is_sim) {
-    plist_from_bin(from_buf, length, &rpc_dict);
+    plist_from_bin(from_buf, length, to_rpc_dict);
   } else {
     plist_t wi_dict = NULL;
     plist_from_bin(from_buf, length, &wi_dict);
@@ -352,60 +341,43 @@ wi_status wi_parse_msg(wi_t self, const char *from_buf, size_t length,
     }
 
     if (p_length) {
-      plist_from_bin(my->partial->head, (uint32_t)p_length, &rpc_dict);
+      plist_from_bin(my->partial->head, (uint32_t)p_length, to_rpc_dict);
       cb_clear(my->partial);
     } else {
-      plist_from_bin(rpc_bin, (uint32_t)rpc_len, &rpc_dict);
+      plist_from_bin(rpc_bin, (uint32_t)rpc_len, to_rpc_dict);
       free(rpc_bin);
     }
   }
-  if (!rpc_dict) {
-    return WI_ERROR;
-  }
 
-  plist_t sel_item = plist_dict_get_item(rpc_dict, "__selector");
-  if (sel_item) {
-    plist_get_string_val(sel_item, to_selector);
-  }
-  plist_t args = plist_dict_get_item(rpc_dict, "__argument");
-  if (args) {
-    *to_args = plist_copy(args);
-  }
-  plist_free(rpc_dict);
-
-  return (*to_selector && *to_args ? WI_SUCCESS : WI_ERROR);
+  return (*to_rpc_dict ? WI_SUCCESS : WI_ERROR);
 }
 
-wi_status wi_recv_packet(wi_t self, const char *packet, size_t length) {
+wi_status wi_recv_packet(wi_t self, const char *packet, ssize_t length) {
   wi_on_debug(self, "wi.recv_packet", packet, length);
 
   size_t body_length = 0;
-  char *selector = NULL;
-  plist_t args = NULL;
+  plist_t rpc_dict = NULL;
   bool is_partial = false;
-  if (packet && length >= 4 &&
-      !wi_parse_length(self, packet, &body_length) &&
-      //TODO (body_length == length - 4) &&
-      !wi_parse_msg(self, packet + 4, body_length,
-        &selector, &args, &is_partial)) {
-    if (is_partial) {
-      return WI_SUCCESS;
+  if (!packet || length < 4 || wi_parse_length(self, packet, &body_length) ||
+      //TODO (body_length != length - 4) ||
+      wi_parse_plist(self, packet + 4, body_length, &rpc_dict, &is_partial)) {
+    // invalid packet
+    char *text = NULL;
+    if (body_length != length - 4) {
+      asprintf(&text, "size %zd != %zd - 4", body_length, length);
+    } else {
+      cb_asprint(&text, packet, length, 80, 50);
     }
-    wi_status ret = wi_recv_msg(self, selector, args);
-    free(selector);
-    plist_free(args);
+    wi_status ret = self->on_error(self, "Invalid packet %s\n", text);
+    free(text);
     return ret;
   }
 
-  // invalid packet
-  char *text = NULL;
-  if (body_length != length - 4) {
-    asprintf(&text, "size %zd != %zd - 4", body_length, length);
-  } else {
-    cb_asprint(&text, packet, length, 80, 50);
+  if (is_partial) {
+    return WI_SUCCESS;
   }
-  wi_status ret = self->on_error(self, "Invalid packet %s\n", text);
-  free(text);
+  wi_status ret = self->recv_plist(self, rpc_dict);
+  plist_free(rpc_dict);
   return ret;
 }
 
@@ -429,7 +401,7 @@ wi_status wi_recv_loop(wi_t self) {
       // don't advance in_head yet
     } else if (my->has_length && in_length >= my->body_length + 4) {
       // can read body now
-      ret = wi_recv_packet(self, in_head, my->body_length + 4);
+      ret = self->recv_packet(self, in_head, my->body_length + 4);
       in_head += my->body_length + 4;
       my->has_length = false;
       my->body_length = 0;
@@ -506,6 +478,8 @@ wi_t wi_new(bool is_sim) {
   }
   memset(self, 0, sizeof(struct wi_struct));
   self->on_recv = wi_on_recv;
+  self->send_plist = wi_send_plist;
+  self->recv_packet = wi_recv_packet;
   self->on_error = wi_on_error;
   self->private_state = wi_private_new();
   if (!self->private_state) {

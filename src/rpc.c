@@ -1,5 +1,5 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
-// Copyright 2012 Google Inc. wrightt@google.com
+// Copyright 2014 Google Inc. wrightt@google.com
 
 #include <errno.h>
 #include <getopt.h>
@@ -100,6 +100,16 @@ plist_t rpc_new_args(const char *connection_id) {
    __argument
  */
 rpc_status rpc_send_msg(rpc_t self, const char *selector, plist_t args) {
+  if (!selector || !args) {
+    return RPC_ERROR;
+  }
+  plist_t rpc_dict = plist_new_dict();
+  plist_dict_insert_item(rpc_dict, "__selector",
+      plist_new_string(selector));
+  plist_dict_insert_item(rpc_dict, "__argument", plist_copy(args));
+  rpc_status ret = self->send_plist(self, rpc_dict);
+  plist_free(rpc_dict);
+  return ret;
 }
 
 /*
@@ -446,7 +456,11 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
   return ret;
 }
 
-rpc_status rpc_recv_packet(rpc_t self, const char *packet, size_t length) {
+rpc_status rpc_recv_plist(rpc_t self, const plist_t rpc_dict) {
+  char *selector = NULL;
+  plist_get_string_val(plist_dict_get_item(rpc_dict, "__selector"), &selector);
+  plist_t args = plist_dict_get_item(rpc_dict, "__argument");
+  return rpc_recv_msg(self, selector, args);
 }
 
 //
@@ -455,12 +469,11 @@ rpc_status rpc_recv_packet(rpc_t self, const char *packet, size_t length) {
 
 void rpc_free(rpc_t self) {
   if (self) {
-    rpc_private_free(self->private_state);
     memset(self, 0, sizeof(struct rpc_struct));
     free(self);
   }
 }
-rpc_t rpc_new(bool is_sim) {
+rpc_t rpc_new() {
   rpc_t self = (rpc_t)malloc(sizeof(struct rpc_struct));
   if (!self) {
     return NULL;
@@ -473,7 +486,7 @@ rpc_t rpc_new(bool is_sim) {
   self->send_forwardSocketSetup = rpc_send_forwardSocketSetup;
   self->send_forwardSocketData = rpc_send_forwardSocketData;
   self->send_forwardDidClose = rpc_send_forwardDidClose;
-  self->on_recv = rpc_on_recv;
+  self->recv_plist = rpc_recv_plist;
   self->on_error = rpc_on_error;
   return self;
 }
