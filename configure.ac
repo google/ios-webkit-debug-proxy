@@ -15,8 +15,8 @@ AC_PROG_INSTALL
 AM_PROG_CC_C_O
 
 # Checks for libraries.
-AC_CHECK_LIB([imobiledevice], [idevice_connect])
-AC_CHECK_LIB([plist], [plist_to_xml])
+AC_CHECK_LIB([imobiledevice], [idevice_connect], [], [AC_MSG_ERROR([required library libimobiledevice not found])])
+AC_CHECK_LIB([plist], [plist_to_xml], [], [AC_MSG_ERROR([required library libplist not found])])
 AC_CHECK_LIB([m], [log10])
 
 # Checks for header files.
