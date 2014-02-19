@@ -5,6 +5,7 @@
 //
 //
 
+#define _GNU_SOURCE
 #include <errno.h>
 //#include <magic.h> //apt-get install libmagic-dev
 #include <signal.h>
@@ -17,6 +18,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "char_buffer.h"
 #include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"
@@ -584,7 +586,6 @@ iwdp_status iwdp_iws_close(iwdp_t self, iwdp_iws_t iws) {
 }
 
 iwdp_status iwdp_iwi_close(iwdp_t self, iwdp_iwi_t iwi) {
-  iwdp_private_t my = self->private_state;
   iwdp_iport_t iport = iwi->iport;
   if (iport) {
     iwdp_log_disconnect(iport);
@@ -1158,7 +1159,6 @@ ws_status iwdp_start_devtools(iwdp_ipage_t ipage, iwdp_iws_t iws) {
   if (!iwi) {
     return WS_ERROR; // internal error?
   }
-  wi_t wi = iwi->wi;
   iwdp_iport_t iport = iwi->iport;
   iwdp_t self = (iport ? iport->self : NULL);
   iwdp_iws_t iws2 = ipage->iws;

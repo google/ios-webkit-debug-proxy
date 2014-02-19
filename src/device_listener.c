@@ -1,6 +1,7 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
 #include <math.h>
@@ -13,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #include <plist/plist.h>
 
@@ -139,7 +141,7 @@ dl_status dl_recv_packet(dl_t self, const char *packet, size_t length) {
   tail += 4;
   uint32_t type = dl_sscanf_uint32(tail);
   tail += 4;
-  uint32_t tag = dl_sscanf_uint32(tail);
+  (void)dl_sscanf_uint32(tail);
   tail += 4;
   const char *xml = tail;
   size_t xml_length = length - 16;

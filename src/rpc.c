@@ -1,6 +1,7 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2014 Google Inc. wrightt@google.com
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
 #include <math.h>
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef __MACH__
 #include <uuid/uuid.h>

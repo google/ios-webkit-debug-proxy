@@ -285,3 +285,20 @@ int cb_asscan(char **ret, size_t *to_length, const char *buf) {
   }
   return rval;
 }
+
+#ifndef __MACH__
+char *strnstr(const char *s1, const char *s2, size_t n) {
+  size_t len = strlen(s2);
+  if (n >= len) {
+    char c = *s2;
+    const char *end = s1 + (n - len);
+    const char *s;
+    for (s = s1; *s && s <= end; s++) {
+      if (*s == c && !strncmp(s, s2, len)) {
+        return (char *)s;
+      }
+    }
+  }
+  return NULL;
+}
+#endif

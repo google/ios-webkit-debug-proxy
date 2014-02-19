@@ -83,6 +83,11 @@ int cb_sscan(char *to_buf, size_t *to_length, const char *buf);
 // Like cb_sscan, but dynamically allocates the *to_buf_ptr.
 int cb_asscan(char **to_buf_ptr, size_t *to_length, const char *buf);
 
+
+#ifndef __MACH__
+char *strnstr(const char *s1, const char *s2, size_t n);
+#endif
+
 #ifdef	__cplusplus
 }
 #endif

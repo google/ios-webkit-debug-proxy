@@ -1,10 +1,12 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "websocket.h"
 #include "char_buffer.h"
@@ -61,7 +63,7 @@ ws_status ws_on_error(ws_t self, const char *format, ...) {
 
 ws_status ws_on_debug(ws_t self, const char *message,
     const char *buf, size_t length) {
-  ws_private_t my = self->private_state;
+  //ws_private_t my = self->private_state;
   if (self->is_debug && *self->is_debug) {
     char *text;
     cb_asprint(&text, buf, length, 80, 50);
@@ -362,23 +364,6 @@ ws_status ws_send_close(ws_t self, ws_close close_code, const char *reason) {
 // RECV
 //
 
-#ifndef __MACH__
-char *strnstr(const char *s1, const char *s2, size_t n) {
-  size_t len = strlen(s2);
-  if (n >= len) {
-    char c = *s2;
-    const char *end = s1 + (n - len);
-    const char *s;
-    for (s = s1; *s && s <= end; s++) {
-      if (*s == c && !strncmp(s, s2, len)) {
-        return (char *)s;
-      }
-    }
-  }
-  return NULL;
-}
-#endif
-
 ws_status ws_read_http_request(ws_t self) {
   ws_private_t my = self->private_state;
   const char *in_head = my->in->in_head;
@@ -570,7 +555,7 @@ ws_status ws_read_frame(ws_t self,
 
   bool is_fin = ((*in_head & 0x80) ? true : false);
   uint8_t opcode = (*in_head & 0x0F);
-  bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
+  //bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
 
   bool is_continue = (opcode == OPCODE_CONTINUATION ? true : false);
   uint8_t opcode2 = (is_continue ? my->continued_opcode : opcode);

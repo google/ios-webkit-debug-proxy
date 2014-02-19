@@ -1,6 +1,7 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
 #include <math.h>
@@ -12,6 +13,7 @@
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
