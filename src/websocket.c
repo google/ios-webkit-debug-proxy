@@ -304,9 +304,18 @@ ws_status ws_send_frame(ws_t self,
   *out_tail++ = ((is_masking ? 0x80 : 0) | (!payload_n ? payload_length :
         payload_n == 2 ? 126: 127));
 
-  int8_t j;
-  for (j = payload_n - 1; j >= 0; j--) {
-    *out_tail++ = (unsigned char)((payload_length >> (j<<3)) & 0xFF);
+  if (payload_n != 0) {
+    if (payload_n == 2) {
+        uint16_t sz16 = htons(payload_length);
+        memcpy(out_tail, &sz16, payload_n);
+    } else {
+        uint64_t sz64 = htobe64(payload_length);
+        memcpy(out_tail, &sz64, payload_n);
+    }
+
+    int i;
+    for (i = 0; i < payload_n; i++) 
+      *out_tail++;
   }
 
   if (is_masking) {
