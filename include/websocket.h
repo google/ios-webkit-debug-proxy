@@ -17,7 +17,7 @@ typedef uint8_t ws_opcode;
 #define OPCODE_BINARY        0x2
 #define OPCODE_CLOSE         0x8
 #define OPCODE_PING          0x9
-#define OPCODE_PONG          0xA 
+#define OPCODE_PONG          0xA
 
 typedef uint16_t ws_close;
 #define CLOSE_NORMAL         1000

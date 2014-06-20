@@ -175,7 +175,7 @@ size_t cb_sprint(char *to_buf, const char *buf, ssize_t length,
     size_t rem = chars_per_line;
     for (j = i; j < length && rem; ) {
       unsigned char ch = buf[j++];
-      static char* hexchars = "0123456789ABCDEF";
+      static const char* hexchars = "0123456789ABCDEF";
       APPEND(' ');
       APPEND(hexchars[(ch >> 4) & 0xF]);
       APPEND(hexchars[ch & 0xF]);

@@ -5,6 +5,7 @@
 // This "main" connects the debugger to our socket management backend.
 //
 
+#define _GNU_SOURCE
 #include <getopt.h>
 #include <errno.h>
 #include <regex.h>
@@ -196,6 +197,7 @@ iwdpm_t iwdpm_new(int argc, char **argv, int *to_exit) {
 int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
 
   static struct option longopts[] = {
+    {"udid", 1, NULL, 'u'},
     {"config", 1, NULL, 'c'},
     {"frontend", 1, NULL, 'f'},
     {"no-frontend", 0, NULL, 'F'},
@@ -213,13 +215,36 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
 
   int ret = 0;
   while (!ret) {
-    int c = getopt_long(argc, argv, "hc:f:Fd", longopts, (int *)0);
+    int c = getopt_long(argc, argv, "hu:c:f:Fd", longopts, (int *)0);
     if (c == -1) {
       break;
     }
     switch (c) {
       case 'h':
         ret = -1;
+        break;
+      case 'u':
+        {
+          regex_t *re = malloc(sizeof(regex_t));
+          regcomp(re, "^[a-fA-F0-9]{40}(:[0-9]+(-[0-9]+)?)?$", REG_EXTENDED);
+          size_t ngroups = re->re_nsub + 1;
+          regmatch_t *groups = calloc(ngroups, sizeof(regmatch_t));
+          bool is_match = !regexec(re, optarg, ngroups, groups, 0);
+          bool has_port = (is_match && groups[1].rm_so >= 0);
+          free(groups);
+          regfree(re);
+          free(self->config);
+          self->config = NULL;
+          if (!is_match) {
+            ret = 2;
+          } else if (!has_port) {
+            if (asprintf(&self->config, "%s%s", optarg, ":9222") < 0) {
+              ret = 2;  // asprintf failed
+            }
+          } else {
+            self->config = strdup(optarg);
+          }
+        }
         break;
       case 'c':
         free(self->config);
@@ -246,21 +271,59 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
     char *name = strrchr(argv[0], '/');
     printf(
         "Usage: %s [OPTIONS]\n"
-        "iOS Remote WebInspector Proxy.\n"
+        "iOS WebKit Remote Debugging Protocol Proxy.\n"
+        "\n"
+        "By default, the proxy will list all attached iOS devices on:\n"
+        "  http://localhost:9221\n"
+        "and assign each device an incremented port number, e.g.:\n"
+        "  http://localhost:9222\n"
+        "which lists the device's pages and provides inspector access.\n"
+        "\n"
+        "Your attached iOS device(s) must have the inspector enabled via:\n"
+        "  Settings > Safari > Advanced > Web Inspector = ON\n"
+        "and have one or more open browser pages.\n"
+        "\n"
+        "To view the DevTools UI, either use the above links (which use the"
+        " \"frontend\"\nURL noted below) or use Chrome's built-in inspector,"
+        " e.g.:\n"
+        "  chrome-devtools://devtools/bundled/devtools.html?host=localhost:"
+        "9222&page=1"
+        "\n\n"
+        "OPTIONS:\n"
+        "\n"
+        "  -u UDID[:minPort-[maxPort]]\tTarget a specific device by its"
+        " 40-digit ID.\n"
+        "        minPort defaults to 9222.  maxPort defaults to minPort.\n"
+        "        This is shorthand for the following \"-c\" option.\n"
         "\n"
         "  -c, --config CSV\tUDID-to-port(s) configuration.\n"
-        "      Defaults to \"%s\", which lists devices on HTTP\n"
-        "      port 9221 and assigns attached iOS devices to ports 9222-9322.\n"
-        "      The value can be the path to a file in the above format.\n"
+        "        Defaults to:\n"
+        "          %s\n"
+        "        which lists devices (\"null:\") on port 9221 and assigns\n"
+        "        all other devices (\":\") to the next unused port in the\n"
+        "        9222-9322 range, in the (somewhat random) order that the\n"
+        "        devices are detected.\n"
+        "        The value can be the path to a file in the above format.\n"
         "\n"
         "  -f, --frontend URL\tDevTools frontend UI path or URL.\n"
-        "      Defaults to Chrome's built-in inspector:\n"
-        "        %s\n"
-        "      Also supports a local WebKit checkout, e.g.:\n"
-        "        /usr/local/WebCore/inspector/front-end/inspector.html\n"
-        "      or a remote copy of the inspector pages, e.g.:\n"
-        "        http://chrome-devtools-frontend.appspot.com/static/"
-        "18.0.1025.74/devtools.html\n"
+        "        Defaults to:\n"
+        "          %s\n"
+        "        Examples:\n"
+        "          * Use Chrome's built-in inspector:\n"
+        "              chrome-devtools://devtools/bundled/devtools.html\n"
+        "          * Use a local WebKit checkout:\n"
+        "              /usr/local/WebCore/inspector/front-end/inspector.html\n"
+        "          * Use an online copy of the inspector pages:\n"
+        "              http://chrome-devtools-frontend.appspot.com/static/"
+        "33.0.1722.0"
+        "/devtools.html\n"
+        "            where other online versions include:\n"
+        "              18.0.1025.74\n"
+        "              25.0.1364.169\n"
+        "              28.0.1501.0\n"
+        "              30.0.1599.92\n"
+        "              31.0.1651.0\n"
+        "              32.0.1689.3\n"
         "\n"
         "  -F, --no-frontend\tDisable the DevTools frontend.\n"
         "\n"
@@ -270,4 +333,3 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
   }
   return ret;
 }
-

@@ -91,10 +91,10 @@ dl_status dl_start(dl_t self) {
   // Assume usbmuxd supports proto_version 1.  If not then we'd need to
   // send a binary listen request, check for failure, then retry this:
   plist_t dict = plist_new_dict();
-  plist_dict_insert_item(dict, "ClientVersionString", plist_new_string(
+  plist_dict_set_item(dict, "ClientVersionString", plist_new_string(
         "device_listener"));
-  plist_dict_insert_item(dict, "MessageType", plist_new_string("Listen"));
-  plist_dict_insert_item(dict, "ProgName", plist_new_string("libusbmuxd"));
+  plist_dict_set_item(dict, "MessageType", plist_new_string("Listen"));
+  plist_dict_set_item(dict, "ProgName", plist_new_string("libusbmuxd"));
   char *xml = NULL;
   uint32_t xml_length = 0;
   plist_to_xml(dict, &xml, &xml_length);

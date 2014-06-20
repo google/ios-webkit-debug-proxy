@@ -64,11 +64,13 @@ rpc_status rpc_new_uuid(char **to_uuid) {
     seeded = true;
     srand(time(NULL));
   }
-  asprintf(to_uuid, "%x%x-%x-%x-%x-%x%x%x", 
+  if (asprintf(to_uuid, "%x%x-%x-%x-%x-%x%x%x",
       rand(), rand(), rand(),
       ((rand() & 0x0fff) | 0x4000),
       rand() % 0x3fff + 0x8000,
-      rand(), rand(), rand());
+      rand(), rand(), rand()) < 0) {
+    return RPC_ERROR;  // asprintf failed
+  }
 #endif
   return RPC_SUCCESS;
 }
@@ -90,7 +92,7 @@ rpc_status rpc_on_error(rpc_t self, const char *format, ...) {
 plist_t rpc_new_args(const char *connection_id) {
   plist_t ret = plist_new_dict();
   if (connection_id) {
-    plist_dict_insert_item(ret, "WIRConnectionIdentifierKey",
+    plist_dict_set_item(ret, "WIRConnectionIdentifierKey",
         plist_new_string(connection_id));
   }
   return ret;
@@ -106,9 +108,9 @@ rpc_status rpc_send_msg(rpc_t self, const char *selector, plist_t args) {
     return RPC_ERROR;
   }
   plist_t rpc_dict = plist_new_dict();
-  plist_dict_insert_item(rpc_dict, "__selector",
+  plist_dict_set_item(rpc_dict, "__selector",
       plist_new_string(selector));
-  plist_dict_insert_item(rpc_dict, "__argument", plist_copy(args));
+  plist_dict_set_item(rpc_dict, "__argument", plist_copy(args));
   rpc_status ret = self->send_plist(self, rpc_dict);
   plist_free(rpc_dict);
   return ret;
@@ -123,7 +125,7 @@ rpc_status rpc_send_reportIdentifier(rpc_t self, const char *connection_id) {
   if (!connection_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_reportIdentifier:";
+  const char *selector = "_rpc_reportIdentifier:";
   plist_t args = rpc_new_args(connection_id);
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -140,7 +142,7 @@ rpc_status rpc_send_getConnectedApplications(rpc_t self,
   if (!connection_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_getConnectedApplications:";
+  const char *selector = "_rpc_getConnectedApplications:";
   plist_t args = rpc_new_args(connection_id);
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -159,9 +161,9 @@ rpc_status rpc_send_forwardGetListing(rpc_t self, const char *connection_id,
   if (!connection_id || !app_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_forwardGetListing:";
+  const char *selector = "_rpc_forwardGetListing:";
   plist_t args = rpc_new_args(connection_id);
-  plist_dict_insert_item(args, "WIRApplicationIdentifierKey",
+  plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -181,13 +183,13 @@ rpc_status rpc_send_forwardIndicateWebView(rpc_t self, const char *connection_id
   if (!connection_id || !app_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_forwardIndicateWebView:";
+  const char *selector = "_rpc_forwardIndicateWebView:";
   plist_t args = rpc_new_args(connection_id);
-  plist_dict_insert_item(args, "WIRApplicationIdentifierKey",
+  plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
-  plist_dict_insert_item(args, "WIRPageIdentifierKey",
+  plist_dict_set_item(args, "WIRPageIdentifierKey",
       plist_new_uint(page_id));
-  plist_dict_insert_item(args, "WIRIndicateEnabledKey",
+  plist_dict_set_item(args, "WIRIndicateEnabledKey",
       plist_new_bool(is_enabled));
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -208,13 +210,13 @@ rpc_status rpc_send_forwardSocketSetup(rpc_t self, const char *connection_id,
   if (!connection_id || !app_id || !sender_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_forwardSocketSetup:";
+  const char *selector = "_rpc_forwardSocketSetup:";
   plist_t args = rpc_new_args(connection_id);
-  plist_dict_insert_item(args, "WIRApplicationIdentifierKey",
+  plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
-  plist_dict_insert_item(args, "WIRPageIdentifierKey",
+  plist_dict_set_item(args, "WIRPageIdentifierKey",
       plist_new_uint(page_id));
-  plist_dict_insert_item(args, "WIRSenderKey",
+  plist_dict_set_item(args, "WIRSenderKey",
       plist_new_string(sender_id));
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -242,15 +244,15 @@ rpc_status rpc_send_forwardSocketData(rpc_t self, const char *connection_id,
   if (!connection_id || !app_id || !sender_id || !data) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_forwardSocketData:";
+  const char *selector = "_rpc_forwardSocketData:";
   plist_t args = rpc_new_args(connection_id);
-  plist_dict_insert_item(args, "WIRApplicationIdentifierKey",
+  plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
-  plist_dict_insert_item(args, "WIRPageIdentifierKey",
+  plist_dict_set_item(args, "WIRPageIdentifierKey",
       plist_new_uint(page_id));
-  plist_dict_insert_item(args, "WIRSenderKey",
+  plist_dict_set_item(args, "WIRSenderKey",
       plist_new_string(sender_id));
-  plist_dict_insert_item(args, "WIRSocketDataKey",
+  plist_dict_set_item(args, "WIRSocketDataKey",
       plist_new_data(data, length));
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -266,13 +268,13 @@ rpc_status rpc_send_forwardDidClose(rpc_t self, const char *connection_id,
   if (!connection_id || !app_id || !sender_id) {
     return RPC_ERROR;
   }
-  char *selector = "_rpc_forwardDidClose:";
+  const char *selector = "_rpc_forwardDidClose:";
   plist_t args = rpc_new_args(connection_id);
-  plist_dict_insert_item(args, "WIRApplicationIdentifierKey",
+  plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
-  plist_dict_insert_item(args, "WIRPageIdentifierKey",
+  plist_dict_set_item(args, "WIRPageIdentifierKey",
       plist_new_uint(page_id));
-  plist_dict_insert_item(args, "WIRSenderKey",
+  plist_dict_set_item(args, "WIRSenderKey",
       plist_new_string(sender_id));
   rpc_status ret = rpc_send_msg(self, selector, args);
   plist_free(args);
@@ -778,4 +780,3 @@ rpc_status rpc_dict_get_required_data(const plist_t node, const char *key,
   *to_length = (size_t)length;
   return RPC_SUCCESS;
 }
-

@@ -98,7 +98,9 @@ int sm_connect(const char *hostname, int port) {
   hints.ai_socktype = SOCK_STREAM;
   struct addrinfo *res0;
   char *port_str = NULL;
-  asprintf(&port_str, "%d", port);
+  if (asprintf(&port_str, "%d", port) < 0) {
+    return -1;  // asprintf failed
+  }
   int ret = getaddrinfo(hostname, port_str, &hints, &res0);
   free(port_str);
   if (ret) {

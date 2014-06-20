@@ -25,7 +25,7 @@ ws_status send_data(ws_t ws, const char *data, size_t length) {
 
 char *create_root_response(int port, int count) {
   char *html = NULL;
-  asprintf(&html,
+  if (asprintf(&html,
       "<html><head><script type=\"text/javascript\">\n"
       "function WebSocketTest() {\n"
       "  if (\"WebSocket\" in window) {\n"
@@ -52,15 +52,19 @@ char *create_root_response(int port, int count) {
       "}\n"
       "</script></head><body><div id=\"sse\">\n"
       "  <a href=\"javascript:WebSocketTest()\">Run WebSocket</a>\n"
-      "</div></body></html>\n", port, count);
+      "</div></body></html>\n", port, count) < 0) {
+    return NULL;  // asprintf failed
+  }
   char *ret = NULL;
-  asprintf(&ret,
+  if (asprintf(&ret,
       "HTTP/1.1 200 OK\r\n"
       "Content-length: %zd\r\n"
       "Connection: close\r\n"
       "Content-Type: text/html; charset=UTF-8\r\n"
       "\r\n%s",
-      (html ? strlen(html) : 0), html);
+      (html ? strlen(html) : 0), html) < 0) {
+    return NULL;  // asprintf failed
+  }
   free(html);
   return ret;
 }

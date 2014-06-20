@@ -84,7 +84,7 @@ int pc_parse(pc_t self, const char *line, size_t len,
     char **to_device_id, int *to_min_port, int *to_max_port) {
   if (!self->re) {
     self->re = malloc(sizeof(regex_t));
-    if (regcomp(self->re, 
+    if (regcomp(self->re,
           "^[ \t]*"
           "(([a-f0-9]{40}|\\*|null)[ \t]*:?|:)"
           "[ \t]*(-?[0-9]+)"
@@ -135,7 +135,7 @@ const char *pc_add_line(pc_t self, const char *line, size_t len) {
       curr++;
     }
     const char *end = curr;
-    while (end < stop && 
+    while (end < stop &&
         *end && *end != '\n' && *end != '#' && *end != ',') {
       end++;
     }

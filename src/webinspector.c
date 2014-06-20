@@ -115,7 +115,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // start webinspector, get port
-  if (lockdownd_start_service(client, "com.apple.webinspector", &service) || 
+  if (lockdownd_start_service(client, "com.apple.webinspector", &service) ||
       !service->port) {
     perror("Could not start com.apple.webinspector!");
     goto leave_cleanup;
@@ -224,7 +224,7 @@ wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
       plist_t wi_dict = plist_new_dict();
       plist_t wi_rpc = plist_new_data(rpc_bin + i,
           (is_partial ? MAX_RPC_LEN : rpc_len - i));
-      plist_dict_insert_item(wi_dict,
+      plist_dict_set_item(wi_dict,
           (is_partial ? "WIRPartialMessageKey" : "WIRFinalMessageKey"), wi_rpc);
       plist_to_bin(wi_dict, &data, &data_len);
       plist_free(wi_dict);
@@ -366,7 +366,9 @@ wi_status wi_recv_packet(wi_t self, const char *packet, ssize_t length) {
     // invalid packet
     char *text = NULL;
     if (body_length != length - 4) {
-      asprintf(&text, "size %zd != %zd - 4", body_length, length);
+      if (asprintf(&text, "size %zd != %zd - 4", body_length, length) < 0) {
+        return self->on_error(self, "asprintf failed");
+      }
     } else {
       cb_asprint(&text, packet, length, 80, 50);
     }

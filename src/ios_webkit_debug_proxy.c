@@ -345,9 +345,8 @@ iwdp_status iwdp_start(iwdp_t self) {
   idl->self = self;
 
   int dl_fd = self->subscribe(self);
-  if (dl_fd < 0) {
-    return self->on_error(self, "Unable to subscribe to"
-        " device add/remove events");
+  if (dl_fd < 0) {  // usbmuxd isn't running
+    return self->on_error(self, "No device found, is it plugged in?");
   }
   idl->dl_fd = dl_fd;
 
@@ -665,14 +664,16 @@ ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
   char *ctype;
   iwdp_get_content_type(resource, false, &ctype);
   char *data;
-  asprintf(&data,
+  if (asprintf(&data,
       "HTTP/1.1 %s\r\n"
       "Content-length: %zd\r\n"
       "Connection: close"
       "%s%s\r\n\r\n%s",
       status, (content ? strlen(content) : 0),
       (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""),
-      (content && !is_head ? content : ""));
+      (content && !is_head ? content : "")) < 0) {
+    return ws->on_error(ws, "asprintf failed");
+  }
   free(ctype);
   ws_status ret = ws->send_data(ws, data, strlen(data));
   free(data);
@@ -702,7 +703,9 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
       if (!fe_file) {
         self->on_error(self, "Ignoring invalid frontend: %s\n", fe_url);
       }
-      asprintf(&frontend_url, "/devtools/%s", fe_file);
+      if (asprintf(&frontend_url, "/devtools/%s", fe_file) < 0) {
+        return self->on_error(self, "asprintf failed");
+      }
     }
     ht_t ipage_ht = (iport->iwi ? iport->iwi->page_num_to_ipage : NULL);
     iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
@@ -724,11 +727,13 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
 ws_status iwdp_on_not_found(ws_t ws, bool is_head, const char *resource,
     const char *details) {
   char *content;
-  asprintf(&content,
+  if (asprintf(&content,
       "<html><title>Error 404 (Not Found)</title>\n"
       "<p><b>404.</b> <ins>That's an error.</ins>\n"
       "<p>The requested URL <code>%s</code> was not found.\n"
-      "%s</html>", resource, (details ? details : ""));
+      "%s</html>", resource, (details ? details : "")) < 0) {
+    return ws->on_error(ws, "asprintf failed");
+  }
   ws_status ret = iwdp_send_http(ws, is_head, "404 Not Found", ".html",
       content);
   free(content);
@@ -749,7 +754,7 @@ ws_status iwdp_on_devtools_request(ws_t ws, const char *resource) {
   }
   // find page
   iwdp_iwi_t iwi = iws->iport->iwi;
-  iwdp_ipage_t p = 
+  iwdp_ipage_t p =
     (iwi && page_num > 0 && page_num <= iwi->max_page_num ?
      (iwdp_ipage_t)ht_get_value(iwi->page_num_to_ipage,
        HT_KEY(page_num)) : NULL);
@@ -799,7 +804,9 @@ ws_status iwdp_get_frontend_path(const char *fe_path, const char *resource,
   }
 
   // concat them into "/qux/foo/bar.html"
-  asprintf(to_path, "%.*s%.*s", (int)fe_path_len, fe_path, (int)res_len, res);
+  if (asprintf(to_path, "%.*s%.*s", (int)fe_path_len, fe_path, (int)res_len, res) < 0) {
+    return IWDP_ERROR;
+  }
   return IWDP_SUCCESS;
 }
 
@@ -834,7 +841,9 @@ ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
     bool is_qrc = false;
     if (strlen(path) > 3 && !strcasecmp(path + strlen(path) - 3, ".js")) {
       char *qrc_path;
-      asprintf(&qrc_path, "%.*sqrc", (int)(strlen(path) - 2), path);
+      if (asprintf(&qrc_path, "%.*sqrc", (int)(strlen(path) - 2), path) < 0) {
+        return self->on_error(self, "asprintf failed");
+      }
       int qrc_fd = open(qrc_path, O_RDONLY);
       free(qrc_path);
       if (qrc_fd >= 0) {
@@ -870,12 +879,14 @@ ws_status iwdp_on_static_request_for_file(ws_t ws, bool is_head,
   }
   size_t length = fs_stat.st_size;
   char *data = NULL;
-  asprintf(&data,
+  if (asprintf(&data,
       "HTTP/1.1 200 OK\r\n"
       "Content-length: %zd\r\n"
       "Connection: close"
       "%s%s\r\n\r\n",
-      length, (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""));
+      length, (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : "")) < 0) {
+    return self->on_error(self, "asprintf failed");
+  }
   free(ctype);
   ws_status ret = ws->send_data(ws, data, strlen(data));
   free(data);
@@ -939,7 +950,9 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
   int fs_fd = self->connect(self, host, port);
   if (fs_fd < 0) {
     char *error;
-    asprintf(&error, "Unable to connect to %s:%d", host, port);
+    if (asprintf(&error, "Unable to connect to %s:%d", host, port) < 0) {
+      return self->on_error(self, "asprintf failed");
+    }
     free(host);
     free(path);
     ws_status ret = iwdp_send_http(ws, is_head, "500 Server Error", ".txt",
@@ -957,13 +970,15 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
     return self->on_error(self, "Unable to add fd %d", fs_fd);
   }
   char *data;
-  asprintf(&data,
+  if (asprintf(&data,
       "%s %s HTTP/1.1\r\n"
       "Host: %s\r\n"
       "Connection: close\r\n" // keep-alive?
       "Accept: */*\r\n"
       "\r\n",
-      (is_head ? "HEAD" : "GET"), path, host);
+      (is_head ? "HEAD" : "GET"), path, host) < 0) {
+    return self->on_error(self, "asprintf failed");
+  }
   free(host);
   free(path);
   size_t length = strlen(data);
@@ -1076,9 +1091,11 @@ ws_status iwdp_on_frame(ws_t ws,
         iwdp_ipage_t p = (iws->page_num ? (iwdp_ipage_t)ht_get_value(
             iwi->page_num_to_ipage, HT_KEY(iws->page_num)) : NULL);
         char *s;
-        asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
+        if (asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
             (p ? "claimed by " : "not found"),
-            (p ? "" : (p->iws ? "local" : "remote")));
+            (p ? "" : (p->iws ? "local" : "remote"))) < 0) {
+          return ws->on_error(ws, "asprintf failed");
+        }
         ws->on_error(ws, "%s", s);
         ws_status ret = ws->send_close(ws, CLOSE_GOING_AWAY, s);
         free(s);
@@ -1318,8 +1335,10 @@ rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
         strcmp(iwi->connection_id, page->connection_id)) {
       // a remote inspector stole stole our page?
       char *s;
-      asprintf(&s, "Page %d/%d claimed by remote %s",
-          iport->port, ipage->page_id, page->connection_id);
+      if (asprintf(&s, "Page %d/%d claimed by remote %s",
+          iport->port, ipage->page_id, page->connection_id) < 0) {
+        return self->on_error(self, "asprintf failed");
+      }
       self->on_error(self, "%s", s);
       free(s);
       ipage->iws->ipage = NULL;
@@ -1489,7 +1508,7 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
     char *s = NULL;
     if (want_json) {
       if (iport->iwi) {
-        asprintf(&s,
+        if (asprintf(&s,
             "%s{\n"
             "   \"deviceId\": \"%s\",\n"
             "   \"deviceName\": \"%s\",\n"
@@ -1497,21 +1516,27 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
             "}",
             (sum_len ? "," : ""), iport->device_id,
             (iport->device_name ? iport->device_name : ""),
-            (host ? host : "localhost"), iport->port);
+            (host ? host : "localhost"), iport->port) < 0) {
+          return NULL;  // asprintf failed
+        }
       }
     } else {
       // TODO use relative urls instead of "localhost", see:
       //   http://stackoverflow.com/questions/6016120
       char *href = NULL;
       if (iport->iwi) {
-        asprintf(&href, " href=\"http://%s:%d/\"",
-            (host ? host : "localhost"), iport->port);
+        if (asprintf(&href, " href=\"http://%s:%d/\"",
+            (host ? host : "localhost"), iport->port) < 0) {
+          return NULL;  // asprintf failed
+        }
       }
-      asprintf(&s,
+      if (asprintf(&s,
           "<li><a%s>%s:%d</a> - <a title=\"%s\">%s</a></li>\n",
           (href ? href : ""), (host ? host : "localhost"),
           iport->port, iport->device_id,
-          (iport->device_name ? iport->device_name : "?"));
+          (iport->device_name ? iport->device_name : "?")) < 0) {
+        return NULL;  // asprintf failed
+      }
       free(href);
     }
     if (s) {
@@ -1520,7 +1545,7 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
     }
   }
 
-  const char *header = 
+  const char *header =
     (want_json ? "[" : "<html><head><title>iOS Devices</title></head>"
      "<body>iOS Devices:<p><ol>\n");
   const char *footer = (want_json ? "]" : "</ol></body></html>");
@@ -1701,12 +1726,14 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     iwdp_ipage_t ipage = *ipp;
     char *href = NULL;
     if (frontend_url) {
-      asprintf(&href, "%s?host=%s:%d&page=%d", frontend_url,
-          (host ? host : "localhost"), port, ipage->page_num);
+      if (asprintf(&href, "%s?host=%s:%d&page=%d", frontend_url,
+          (host ? host : "localhost"), port, ipage->page_num) < 0) {
+        return NULL;  // asprintf failed
+      }
     }
     char *s = NULL;
     if (want_json) {
-      asprintf(&s, 
+      if (asprintf(&s,
           "%s{\n"
           "   \"devtoolsFrontendUrl\": \"%s\",\n"
           "   \"faviconUrl\": \"\",\n"
@@ -1719,16 +1746,20 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           (ipage->url ? ipage->url : ""),
           (ipage->title ? ipage->title : ""),
           (ipage->url ? ipage->url : ""),
-          (host ? host : "localhost"), port, ipage->page_num);
+          (host ? host : "localhost"), port, ipage->page_num) < 0) {
+        return NULL;  // asprintf failed
+      }
     } else {
-      asprintf(&s,
+      if (asprintf(&s,
           "<li value=\"%d\"><a%s%s%s title=\"%s\">%s</a></li>\n",
           ipage->page_num,
           (href ? (ipage->iws ? " alt=\"" : " href=\"") : ""),
           (href ? href : ""),
           (href ? "\"" : ""),
           (ipage->title ? ipage->title : "?"),
-          (ipage->url ? ipage->url : "?")); // encodeURI?
+          (ipage->url ? ipage->url : "?")) < 0) { // encodeURI?
+        return NULL;  // asprintf failed
+      }
     }
     free(href);
     if (s) {
@@ -1737,16 +1768,18 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     }
   }
 
-  char *header = "[";
-  char *footer = "]";
+  char *header = (char *)"[";
+  char *footer = (char *)"]";
   if (!want_json) {
-    asprintf(&header,
+    if (asprintf(&header,
         "<html><head><title>%s</title></head>"
         "<body>Inspectable pages for <a title=\"%s\">%s</a>:<p><ol>\n",
-        device_name, device_id, device_name);
+        device_name, device_id, device_name) < 0) {
+      return NULL;  // asprintf failed
+    }
     bool is_chrome_dev = (sum_len > 0 && frontend_url &&
         !strncasecmp(frontend_url, "chrome-devtools://", 18));
-    asprintf(&footer, "</ol>%s</body></html>", (is_chrome_dev ?
+    if (asprintf(&footer, "</ol>%s</body></html>", (is_chrome_dev ?
         "<p><b>Note:</b> Your browser may block<sup><a href=\""
         "https://code.google.com/p/chromium/issues/detail?id=87815"
         "\"1\">1,</a><a href=\""
@@ -1754,7 +1787,9 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
         "\">2</a></sup> the above links with JavaScript console error:<br><tt>"
         "&nbsp;&nbsp;Not allowed to load local resource: chrome-devtools://..."
         "</tt><br>To open a link: right-click on the link (control-click on"
-        " Mac), 'Copy Link Address', and paste it into address bar." : ""));
+        " Mac), 'Copy Link Address', and paste it into address bar." : "")) < 0) {
+      return NULL;  // asprintf failed
+    }
   }
 
   // concat

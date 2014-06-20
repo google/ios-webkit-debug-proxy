@@ -584,7 +584,7 @@ ws_status ws_read_frame(ws_t self,
     }
   }
 
-  if (cb_ensure_capacity(my->data, payload_length)) { 
+  if (cb_ensure_capacity(my->data, payload_length)) {
     return self->on_error(self,
         "Payload %zd exceeds buffer capacity", payload_length);
   }
