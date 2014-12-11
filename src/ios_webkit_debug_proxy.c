@@ -1093,7 +1093,7 @@ ws_status iwdp_on_frame(ws_t ws,
         char *s;
         if (asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
             (p ? "claimed by " : "not found"),
-            (p ? "" : (p->iws ? "local" : "remote"))) < 0) {
+            (p ? (p->iws ? "local" : "remote") : "" )) < 0) {
           return ws->on_error(ws, "asprintf failed");
         }
         ws->on_error(ws, "%s", s);
@@ -1271,6 +1271,9 @@ rpc_status iwdp_on_applicationDisconnected(rpc_t rpc, const rpc_app_t app) {
 rpc_status iwdp_on_reportConnectedApplicationList(rpc_t rpc, const rpc_app_t *apps) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   ht_t app_id_ht = iwi->app_id_to_true;
+  if (*apps == NULL) {
+    return RPC_SUCCESS;
+  }
 
   // remove old apps
   char **old_app_ids = (char **)ht_keys(app_id_ht);
@@ -1379,6 +1382,16 @@ rpc_status iwdp_on_applicationSentData(rpc_t rpc,
   return ws->send_frame(ws,
       true, OPCODE_TEXT, false,
       data, length);
+}
+
+rpc_status iwdp_on_applicationUpdated(rpc_t rpc,
+    const char *app_id, const char *dest_id) {
+  rpc_status result = iwdp_remove_app_id(rpc, app_id);
+  if (result) {
+    // Error removing app_id
+    return result;
+  }
+  return iwdp_add_app_id(rpc, dest_id);
 }
 
 //
@@ -1600,6 +1613,7 @@ iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug) {
   rpc->on_applicationDisconnected = iwdp_on_applicationDisconnected;
   rpc->on_applicationSentListing = iwdp_on_applicationSentListing;
   rpc->on_applicationSentData = iwdp_on_applicationSentData;
+  rpc->on_applicationUpdated = iwdp_on_applicationUpdated;
   rpc->send_plist = iwdp_send_plist;
   rpc->state = iwi;
   iwi->rpc = rpc;

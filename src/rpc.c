@@ -421,6 +421,58 @@ rpc_status rpc_recv_applicationSentData(rpc_t self, const plist_t args) {
   return ret;
 }
 
+/*
+_rpc_applicationUpdated: <dict>
+<key>WIRApplicationBundleIdentifierKey</key>
+<string>com.apple.WebKit.WebContent</string>
+<key>WIRHostApplicationIdentifierKey</key>
+<string>PID:409</string>
+<key>WIRApplicationNameKey</key>
+<string></string>
+<key>WIRIsApplicationProxyKey</key>
+<true/>
+<key>WIRIsApplicationActiveKey</key>
+<integer>0</integer>
+<key>WIRApplicationIdentifierKey</key>
+<string>PID:536</string>
+</dict>
+
+OR
+
+<key>WIRApplicationBundleIdentifierKey</key>
+<string>com.apple.mobilesafari</string>
+<key>WIRApplicationNameKey</key>
+<string>Safari</string>
+<key>WIRIsApplicationProxyKey</key>
+<false/>
+<key>WIRIsApplicationActiveKey</key>
+<integer>0</integer>
+<key>WIRApplicationIdentifierKey</key>
+<string>PID:730</string>
+*/
+rpc_status rpc_recv_applicationUpdated(rpc_t self, const plist_t args) {
+  char *app_id = NULL;
+  char *dest_id = NULL;
+  rpc_status ret;
+  if (!rpc_dict_get_required_string(args, "WIRHostApplicationIdentifierKey", &app_id)) {
+    if (!rpc_dict_get_required_string(args, "WIRApplicationIdentifierKey", &dest_id) &&
+      !self->on_applicationUpdated(self, app_id, dest_id)) {
+      ret = RPC_SUCCESS;
+    } else {
+      ret = RPC_ERROR;
+    }
+  } else if (!rpc_dict_get_required_string(args, "WIRApplicationNameKey", &app_id) &&
+             !rpc_dict_get_required_string(args, "WIRApplicationIdentifierKey", &dest_id) &&
+             !self->on_applicationUpdated(self, app_id, dest_id)) {
+    ret = RPC_SUCCESS;
+  } else {
+    ret = RPC_ERROR;
+  }
+  free(app_id);
+  free(dest_id);
+  return ret;
+}
+
 rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
   if (!selector) {
     return RPC_ERROR;
@@ -447,6 +499,10 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
     }
   } else if (!strcmp(selector, "_rpc_applicationSentData:")) {
     if (!rpc_recv_applicationSentData(self, args)) {
+      return RPC_SUCCESS;
+    }
+  } else if (!strcmp(selector, "_rpc_applicationUpdated:")) {
+    if (!rpc_recv_applicationUpdated(self, args)) {
       return RPC_SUCCESS;
     }
   }
