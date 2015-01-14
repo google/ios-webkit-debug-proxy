@@ -1093,7 +1093,7 @@ ws_status iwdp_on_frame(ws_t ws,
         char *s;
         if (asprintf(&s, "Page %d/%d %s%s", iport->port, iws->page_num,
             (p ? "claimed by " : "not found"),
-            (p ? "" : (p->iws ? "local" : "remote"))) < 0) {
+            (p ? (p->iws ? "local" : "remote") : "" )) < 0) {
           return ws->on_error(ws, "asprintf failed");
         }
         ws->on_error(ws, "%s", s);
