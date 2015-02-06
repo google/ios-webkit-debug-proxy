@@ -1741,12 +1741,14 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           "   \"title\": \"%s\",\n"
           "   \"url\": \"%s\",\n"
           "   \"webSocketDebuggerUrl\": \"ws://%s:%d/devtools/page/%d\"\n"
+          "   \"appId\": \"%s\"\n"
           "}",
           (sum_len ? "," : ""), (href && !ipage->iws ? href : ""),
           (ipage->url ? ipage->url : ""),
           (ipage->title ? ipage->title : ""),
           (ipage->url ? ipage->url : ""),
-          (host ? host : "localhost"), port, ipage->page_num) < 0) {
+          (host ? host : "localhost"), port, ipage->page_num,
+          (ipage->app_id ? ipage->app_id : "")) < 0) {
         return NULL;  // asprintf failed
       }
     } else {
