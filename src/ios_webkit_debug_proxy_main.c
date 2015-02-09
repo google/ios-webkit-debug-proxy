@@ -208,7 +208,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
   };
   const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
   const char *DEFAULT_FRONTEND =
-     "chrome-devtools://devtools/bundled/devtools.html";
+     "http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html";
 
   self->config = strdup(DEFAULT_CONFIG);
   self->frontend = strdup(DEFAULT_FRONTEND);
