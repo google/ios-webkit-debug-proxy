@@ -16,6 +16,15 @@
 
 #include "validate_utf8.h"
 
+#ifndef htobe64
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+#define htobe64(h) OSSwapHostToBigInt64(h)
+#elif _MSC_VER
+#define htobe64(h) _byteswap_uint64(h)
+#endif
+#endif
+
 typedef int8_t ws_state;
 #define STATE_ERROR 1
 #define STATE_READ_HTTP_REQUEST 2
