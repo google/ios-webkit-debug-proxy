@@ -447,6 +447,8 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
     if (!rpc_recv_applicationSentData(self, args)) {
       return RPC_SUCCESS;
     }
+  } else if (!strcmp(selector, "_rpc_applicationUpdated:")) {
+    return RPC_SUCCESS;
   }
 
   // invalid msg
