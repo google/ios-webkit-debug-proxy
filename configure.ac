@@ -11,15 +11,19 @@ AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_INSTALL
 AM_PROG_CC_C_O
+AC_PROG_INSTALL
 
 # Checks for libraries.
-AC_CHECK_LIB([imobiledevice], [idevice_connect])
-AC_CHECK_LIB([plist], [plist_to_xml])
-AC_CHECK_LIB([m], [log10])
+PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
+PKG_CHECK_MODULES(libplist, libplist >= 1.11)
+AC_CHECK_LIB([plist], [plist_to_xml], [ ])
+AC_CHECK_LIB([m], [log10], [ ])
+AC_CHECK_LIB([imobiledevice], [idevice_new], [ ])
+LT_INIT
 
 # Checks for header files.
+AC_HEADER_STDC
 AC_HEADER_RESOLV
 AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h sys/time.h])
 

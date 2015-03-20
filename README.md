@@ -41,7 +41,6 @@ On Linux or Mac:
           libimobiledevice-dev
 
       ./autogen.sh
-      ./configure           # for debug symbols, append 'CFLAGS=-g -O0'
       make
       sudo make install
 

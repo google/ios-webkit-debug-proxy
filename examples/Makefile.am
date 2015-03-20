@@ -9,16 +9,10 @@ AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS)
 noinst_PROGRAMS = ws_echo1 ws_echo2 wi_client dl_client
 
 ws_echo1_SOURCES = ws_echo1.c \
-    ws_echo_common.c ws_echo_common.h  \
-    base64.h \
-    char_buffer.h \
-    sha1.h \
-    websocket.h
-ws_echo1_LDADD = \
-    ../src/base64.o \
-    ../src/char_buffer.o \
-    ../src/sha1.o \
-    ../src/websocket.o
+    ws_echo_common.c ws_echo_common.h
+ws_echo1_CFLAGS = $(AM_CFLAGS)
+ws_echo1_LDFLAGS = $(top_builddir)/src/libios_webkit_debug_proxy.la $(AM_LDFLAGS)
+ws_echo1_LDADD = $(top_builddir)/src/libios_webkit_debug_proxy.la
 
 ws_echo2_SOURCES = ws_echo2.c \
     ws_echo_common.c ws_echo_common.h \
