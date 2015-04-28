@@ -39,7 +39,10 @@ On Linux or Mac:
           libplist-dev libplist++-dev \
           usbmuxd \
           libimobiledevice-dev
-
+      
+      git clone git@github.com:google/ios-webkit-debug-proxy.git
+      cd ios-webkit-debug-proxy
+      
       ./autogen.sh
       make
       sudo make install
