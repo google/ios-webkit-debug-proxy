@@ -447,7 +447,7 @@ ws_status ws_read_headers(ws_t self) {
     if (!strcasecmp(key, "Connection")) {
       // firefox uses "keep-alive, Upgrade"
       is_connection = (strcasestr(val, "Upgrade") ? 1 : 0);
-    } else if (!strcmp(key, "Upgrade")) {
+    } else if (!strcasecmp(key, "Upgrade")) {
       is_upgrade = !strcasecmp(val, "WebSocket");
     } else if (!strcasecmp(key, "Sec-WebSocket-Protocol")) {
       free(my->protocol);
