@@ -1740,7 +1740,7 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           "   \"thumbnailUrl\": \"/thumb/%s\",\n"
           "   \"title\": \"%s\",\n"
           "   \"url\": \"%s\",\n"
-          "   \"webSocketDebuggerUrl\": \"ws://%s:%d/devtools/page/%d\"\n"
+          "   \"webSocketDebuggerUrl\": \"ws://%s:%d/devtools/page/%d\",\n"
           "   \"appId\": \"%s\"\n"
           "}",
           (sum_len ? "," : ""), (href && !ipage->iws ? href : ""),
