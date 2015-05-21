@@ -38,7 +38,7 @@ On Linux or Mac:
           libusb-dev libusb-1.0-0-dev \
           libplist-dev libplist++-dev \
           usbmuxd \
-          libimobiledevice-dev
+          libimobiledevice-dev libtool
       
       git clone git@github.com:google/ios-webkit-debug-proxy.git
       cd ios-webkit-debug-proxy
