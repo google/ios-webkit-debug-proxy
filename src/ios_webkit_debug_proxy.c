@@ -1726,7 +1726,7 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     iwdp_ipage_t ipage = *ipp;
     char *href = NULL;
     if (frontend_url) {
-      if (asprintf(&href, "%s?host=%s:%d&page=%d", frontend_url,
+      if (asprintf(&href, "%s?ws=%s:%d/devtools/page/%d", frontend_url,
           (host ? host : "localhost"), port, ipage->page_num) < 0) {
         return NULL;  // asprintf failed
       }
