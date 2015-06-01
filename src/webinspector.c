@@ -29,7 +29,7 @@
 #define MAX_RPC_LEN 8096 - 500
 
 // some arbitrarly limit, to catch bad packets
-#define MAX_BODY_LENGTH 1<<20
+#define MAX_BODY_LENGTH 1<<24
 
 struct wi_private {
   bool is_sim;
