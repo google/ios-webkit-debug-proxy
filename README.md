@@ -27,34 +27,25 @@ The proxy requires the following open-source packages:
 Installation
 ------------
 
-This fork does not maintain the brew installation.
+On a Mac, it's easiest to use [brew](http://mxcl.github.com/homebrew/):
 
-On Linux:
+      brew install ios-webkit-debug-proxy
+      
+On Linux or Mac:
 
       sudo apt-get install \
           autoconf automake \
           libusb-dev libusb-1.0-0-dev \
           libplist-dev libplist++-dev \
-          usbmuxd \
+          usbmuxd libtool \
           libimobiledevice-dev
-On Mac, it's easiest to use homebrew for the dependencies:
-
-      brew install \
-        autoconf automake \
-        libusb libplist \
-        usbmuxd \
-      brew install --HEAD ideviceinstaller
+      
+      git clone git@github.com:google/ios-webkit-debug-proxy.git
+      cd ios-webkit-debug-proxy
+      
       ./autogen.sh
-      ./configure           # for debug symbols, append 'CFLAGS=-g -O0'
       make
       sudo make install
-
-Personally, my dependencies at the time of this writing (Febuary 11, 2015) is:
-
-    ideviceinstaller HEAD
-    libplist 1.12
-    libusb 1.0.19
-    usbmuxd 1.0.10
 
 Usage
 -----
