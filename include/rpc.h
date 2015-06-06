@@ -107,6 +107,9 @@ struct rpc_struct {
             const char *app_id, const char *dest_id,
             const char *data, size_t length);
 
+    rpc_status (*on_applicationUpdated)(rpc_t self,
+            const char *app_id, const char *dest_id);
+
     // For internal use only:
     rpc_status (*on_error)(rpc_t self, const char *format, ...);
 };
