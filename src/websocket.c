@@ -25,6 +25,10 @@
 #endif
 #endif
 
+#ifndef htons
+#include <arpa/inet.h>
+#endif
+
 typedef int8_t ws_state;
 #define STATE_ERROR 1
 #define STATE_READ_HTTP_REQUEST 2
@@ -322,9 +326,7 @@ ws_status ws_send_frame(ws_t self,
         memcpy(out_tail, &sz64, payload_n);
     }
 
-    int i;
-    for (i = 0; i < payload_n; i++) 
-      *out_tail++;
+    out_tail += payload_n;
   }
 
   if (is_masking) {
