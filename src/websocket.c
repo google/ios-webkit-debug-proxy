@@ -324,7 +324,7 @@ ws_status ws_send_frame(ws_t self,
 
     int i;
     for (i = 0; i < payload_n; i++) 
-      *out_tail++;
+      out_tail++;
   }
 
   if (is_masking) {
