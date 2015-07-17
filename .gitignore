@@ -17,6 +17,8 @@ aclocal.m4
 autom4te.cache
 autoscan.log
 compile
+config.guess
+config.sub
 config.h
 config.h.in
 config.log
@@ -24,6 +26,7 @@ config.status
 configure
 configure.scan
 depcomp
+ltmain.sh
 install-sh
 missing
 stamp-h1
