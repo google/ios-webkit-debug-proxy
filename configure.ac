@@ -18,7 +18,7 @@ AC_PROG_INSTALL
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
 PKG_CHECK_MODULES(libplist, libplist >= 1.11)
 AC_CHECK_LIB([plist], [plist_to_xml], [ ])
-AC_CHECK_LIB([m], [log10], [ ])
+AC_CHECK_LIB([m], [log10])
 AC_CHECK_LIB([imobiledevice], [idevice_new], [ ])
 LT_INIT
 
