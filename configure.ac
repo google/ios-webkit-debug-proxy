@@ -17,9 +17,13 @@ AC_PROG_INSTALL
 # Checks for libraries.
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
 PKG_CHECK_MODULES(libplist, libplist >= 1.11)
-AC_CHECK_LIB([plist], [plist_to_xml], [ ])
+AC_CHECK_LIB([plist], [plist_to_xml],
+             [ ], [AC_MSG_FAILURE([*** Unable to link with libplist])],
+             [$libplist_LIBS])
 AC_CHECK_LIB([m], [log10])
-AC_CHECK_LIB([imobiledevice], [idevice_new], [ ])
+AC_CHECK_LIB([imobiledevice], [idevice_new],
+             [ ], [AC_MSG_FAILURE([*** Unable to link with libimobiledevice])],
+             [$libimobiledevice_LIBS])
 LT_INIT
 
 # Checks for header files.
