@@ -1,11 +1,6 @@
-Google BSD license <http://code.google.com/google_bsd_license.html>   
-Copyright 2012 Google Inc.  <wrightt@google.com>
+# iOS WebKit Debug Proxy
 
-
-iOS WebKit Debug Proxy
-======================
-
-The ios_webkit_debug_proxy allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [DevTools UI](https://developers.google.com/chrome-developer-tools/) and [WebKit Remote Debugging Protocol](https://developers.google.com/chrome-developer-tools/docs/remote-debugging).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls, as illustrated below:
+The ios_webkit_debug_proxy allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [Chrome DevTools UI](https://developers.google.com/chrome-developer-tools/) and [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls, as illustrated below:
 
 ![Alt overview](overview.png "Overview")
 
@@ -13,8 +8,7 @@ The proxy detects when iOS devices are attached/removed and provides the current
 
 Equivalent JSON-formatted APIs are provided for programmatic clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  See the [examples/README](examples/README.md) for example clients.
 
-Requirements
-------------
+## Requirements
 
 Linux and OS X are currently supported.  Windows support is planned but not implemented yet.
 
@@ -24,8 +18,7 @@ The proxy requires the following open-source packages:
    - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
    - [libimobiledevice 1.1.5](http://cgit.sukimashita.com/libimobiledevice.git)
 
-Installation
-------------
+## Installation
 
 On a Mac, it's easiest to use [brew](http://mxcl.github.com/homebrew/):
 
@@ -33,23 +26,22 @@ On a Mac, it's easiest to use [brew](http://mxcl.github.com/homebrew/):
       
 On Linux or Mac:
 
-      sudo apt-get install \
-          autoconf automake \
-          libusb-dev libusb-1.0-0-dev \
-          libplist-dev libplist++-dev \
-          usbmuxd libtool \
-          libimobiledevice-dev
-      
-      git clone git@github.com:google/ios-webkit-debug-proxy.git
-      cd ios-webkit-debug-proxy
-      
-      ./autogen.sh
-      make
-      sudo make install
+```sh
+sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev
 
-Usage
------
-On Linux you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.  To verify that usbmuxd can list your attached device(s), run `idevice_id -l`
+git clone git@github.com:google/ios-webkit-debug-proxy.git
+cd ios-webkit-debug-proxy
+
+./autogen.sh
+make
+sudo make install
+```
+
+## Usage
+
+On Linux, you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.  To verify that usbmuxd can list your attached device(s), run `idevice_id -l`
+
+
 
 To start the proxy, run:
 
@@ -57,15 +49,17 @@ To start the proxy, run:
 
 Press Ctrl-C to quit. The proxy can be left running as a background process.  Add "-d" for verbose output.  Run with "--help" for more options.
 
-The iOS Simulator is supported but, for now, the simulator must be started before the proxy.  The simulator can be started in XCode as usual, or via the command line:
+The iOS Simulator is supported but, for now, the simulator must be started **before** the proxy.  The simulator can be started in XCode as usual, or via the command line:
 
-       SIM_DIR=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer
-       "$SIM_DIR/Applications/iPhone Simulator.app/Contents/MacOS/iPhone Simulator" \
-           -SimulateApplication \
-           $SIM_DIR/SDKs/iPhoneSimulator6.1.sdk/Applications/MobileSafari.app/MobileSafari
+```sh
+# Xcode changes these paths frequently, so doublecheck them
+SDK_DIR="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs"
+SIM_APP="/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app/Contents/MacOS/Simulator"
+$SIM_APP -SimulateApplication $SDK_DIR/iPhoneSimulator8.4.sdk/Applications/MobileSafari.app/MobileSafari
+```
 
-Configuration
--------------
+## Configuration
+
 The default configuration works well for most developers.
 
 As noted above, the device_id-to-port assignment defaults to:
@@ -135,7 +129,12 @@ even if you launch Chrome with
 [--allow-file-access-from-files](https://code.google.com/p/chromium/codesearch#chromium/src/content/browser/fileapi/browser_file_system_helper.cc&l=33).
 
 
-Design
-------
+## Design
 
 See [design.md](design.md) for an overview of the source layout and architecture.
+
+## License and Copyright
+
+Google BSD license <http://code.google.com/google_bsd_license.html>   
+Copyright 2012 Google Inc.  <wrightt@google.com>
+
