@@ -1,6 +1,6 @@
 # iOS WebKit Debug Proxy
 
-The ios_webkit_debug_proxy (aka _iwdp_) allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [Chrome DevTools UI](https://developers.google.com/chrome-developer-tools/) and [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls. 
+The ios_webkit_debug_proxy (aka _iwdp_) allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [Chrome DevTools UI](https://developers.google.com/chrome-developer-tools/) and [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls.
 
 ## Installation
 
@@ -52,14 +52,14 @@ Your attached iOS devices must have ≥1 open browser tabs and the inspector ena
 ios_webkit_debug_proxy
 ```
 
-* `--debug` for verbose output.  
+* `--debug` for verbose output.
 * `--frontend` to specify a frontend
 * `--help` for more options.
-* `Ctrl-C` to quit. Also, the proxy can be left running as a background process.  
+* `Ctrl-C` to quit. Also, the proxy can be left running as a background process.
 
 ### View and inspect debuggable tabs
 
-Navigate to [localhost:9221](http://localhost:9221). You'll see a listing of all connected devices. 
+Navigate to [localhost:9221](http://localhost:9221). You'll see a listing of all connected devices.
 
 Click through to view tabs available on each, and click through again to open the DevTools for a tab.
 
@@ -80,7 +80,7 @@ ios_webkit_debug_proxy -f chrome-devtools://devtools/bundled/inspector.html
 ios_webkit_debug_proxy -f ~/chromium/src/third_party/WebKit/Source/devtools/front_end/inspector.html
 ios_webkit_debug_proxy -f http://foo.com:1234/bar/inspector.html
 ```
- 
+
 If you use `-f chrome-devtools://devtools/bundled/inspector.html`, you won't be able to click the links shown in `localhost:9222` as Chrome blocks clicking these URLs. However, you can copy/paste them into the address bar.
 
 Just the same, you can apply the appropriate port (9222) and page (2) values below.
@@ -88,7 +88,7 @@ Just the same, you can apply the appropriate port (9222) and page (2) values bel
     chrome-devtools://devtools/bundled/inspector.html?ws=localhost:9222/devtools/page/1
 
 The `-f` value must end in ".html". As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
- 
+
 To disable the frontend proxy, use the `--no-frontend` argument.
 
 #### Port assigment
@@ -100,7 +100,7 @@ The default configuration works well for most developers. The device_id-to-port 
     :9223 for the second iOS device that is attached
     ...
     :9322 for the max device
-      
+
 If a port is in use then the next available port will be used, up to the range limit.
 
 The port assignment is first-come-first-serve but is preserved if a device is detached and reattached, assuming that the proxy is not restarted, e.g.:
@@ -124,11 +124,26 @@ where "null" represents the device list.  The following example restricts the pr
 
 ### Troubleshooting
 
-You can always try replugging in the USB cable.
+```console
+/usr/bin/ld: ios_webkit_debug_proxy-char_buffer.o: undefined reference to symbol 'log10@@GLIBC_2.2.5'
+//lib/x86_64-linux-gnu/libm.so.6: error adding symbols: DSO missing from command line
+```
+
+Run this before `make`: `./configure LIBS="-lm"`
+
+```console
+ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.so.6: cannot open shared object file: No such file or directory
+```
+
+Run `sudo ldconfig`
 
 > Could not connect to lockdownd. Exiting.: No such file or directory. Unable to attach <long id> inspector ios_webkit_debug_proxy
 
 Check the device for [a prompt to trust the connected computer](http://i.stack.imgur.com/hPaqX.png). Choose "Trust" and try again.
+
+
+Lastly, always try replugging in the USB cable.
+
 
 ## Design
 
@@ -142,7 +157,7 @@ See [design.md](design.md) for an overview of the source layout and architecture
 
 ## License and Copyright
 
-Google BSD license <http://code.google.com/google_bsd_license.html>   
+Google BSD license <http://code.google.com/google_bsd_license.html>
 Copyright 2012 Google Inc.  <wrightt@google.com>
 
 The proxy uses the following open-source packages:
