@@ -159,7 +159,7 @@ Lastly, always try replugging in the USB cable.
 
 JSON-formatted APIs are provided for programmatic clients. 
   * <http://localhost:9221/json> will list all devices
-  * <http://localhost/9222/json> to list device ":9222"'s tabs
+  * <http://localhost:9222/json> to list device ":9222"'s tabs
   * [ws://localhost:9222/devtools/page/1]() to inspect a tab.  
  
 See the [examples/README](examples/README.md) for example clients: NodeJS, C, clientside JS, websocket and more.
