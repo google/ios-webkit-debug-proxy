@@ -139,6 +139,10 @@ ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.s
 
 Run `sudo ldconfig`
 
+##### idevice_id not found
+
+The `idevice_id` executable may be found as part of the libimobiledevice-utils package.
+
 ##### could not start com.apple.webinspector! success
 
 [Remove and rebuild libimobiledevice](https://github.com/google/ios-webkit-debug-proxy/issues/82#issuecomment-74205898).
