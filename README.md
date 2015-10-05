@@ -124,6 +124,7 @@ where "null" represents the device list.  The following example restricts the pr
 
 ### Troubleshooting
 
+##### undefined reference to symbol 'log10@@GLIBC_2.2.5'
 ```console
 /usr/bin/ld: ios_webkit_debug_proxy-char_buffer.o: undefined reference to symbol 'log10@@GLIBC_2.2.5'
 //lib/x86_64-linux-gnu/libm.so.6: error adding symbols: DSO missing from command line
@@ -131,17 +132,23 @@ where "null" represents the device list.  The following example restricts the pr
 
 Run this before `make`: `./configure LIBS="-lm"`
 
+##### error while loading shared libraries: libimobiledevice.so.6
 ```console
 ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.so.6: cannot open shared object file: No such file or directory
 ```
 
 Run `sudo ldconfig`
 
+##### could not start com.apple.webinspector! success
+
+[Remove and rebuild libimobiledevice](https://github.com/google/ios-webkit-debug-proxy/issues/82#issuecomment-74205898).
+
+##### Could not connect to lockdownd
 > Could not connect to lockdownd. Exiting.: No such file or directory. Unable to attach <long id> inspector ios_webkit_debug_proxy
 
 Check the device for [a prompt to trust the connected computer](http://i.stack.imgur.com/hPaqX.png). Choose "Trust" and try again.
 
-
+##### If no luck so far...
 Lastly, always try replugging in the USB cable.
 
 
