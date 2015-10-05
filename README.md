@@ -155,16 +155,20 @@ Check the device for [a prompt to trust the connected computer](http://i.stack.i
 ##### If no luck so far...
 Lastly, always try replugging in the USB cable.
 
+## IWDP Clients
+
+JSON-formatted APIs are provided for programmatic clients. 
+  * <http://localhost:9221/json> will list all devices
+  * <http://localhost/9222/json> to list device ":9222"'s tabs
+  * [ws://localhost:9222/devtools/page/1]() to inspect a tab.  
+ 
+See the [examples/README](examples/README.md) for example clients: NodeJS, C, clientside JS, websocket and more.
 
 ## Design
 
 ![Alt overview](overview.png "Overview")
 
-The proxy detects when iOS devices are attached/removed and provides the current device list on <http://localhost:9221>.  A developer can click on a device's link (e.g. <http://localhost:9222>) to list that device's open tabs, then click on a tab link (e.g. <http://localhost:9222/devtools/page/1>) to inspect that tab in their browser's DevTools UI.
-
-Equivalent JSON-formatted APIs are provided for programmatic clients: <http://localhost:9221/json> to list all devices,    <http://localhost/9222/json> to list device ":9222"'s tabs,    and [ws://localhost:9222/devtools/page/1]() to inspect a tab.  See the [examples/README](examples/README.md) for example clients.
-
-See [design.md](design.md) for an overview of the source layout and architecture.
+View the [design document](design.md) for an overview of the source layout and architecture.
 
 ## License and Copyright
 
