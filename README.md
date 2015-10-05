@@ -87,7 +87,7 @@ Just the same, you can apply the appropriate port (9222) and page (2) values bel
 
     chrome-devtools://devtools/bundled/inspector.html?ws=localhost:9222/devtools/page/1
 
-The `-f` value must end in ".html". Due to security reasons, "https" URLs will not work. As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
+The `-f` value must end in ".html". Due to security reasons, `https` URLs will not work; use `http` or force-allow with the URL bar's shield icon. As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
 
 To disable the frontend proxy, use the `--no-frontend` argument.
 
