@@ -87,7 +87,7 @@ Just the same, you can apply the appropriate port (9222) and page (2) values bel
 
     chrome-devtools://devtools/bundled/inspector.html?ws=localhost:9222/devtools/page/1
 
-The `-f` value must end in ".html". As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
+The `-f` value must end in ".html". Due to security reasons, `https` URLs will not work; use `http` or force-allow with the URL bar's shield icon. As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
 
 To disable the frontend proxy, use the `--no-frontend` argument.
 
@@ -124,11 +124,37 @@ where "null" represents the device list.  The following example restricts the pr
 
 ### Troubleshooting
 
-You can always try replugging in the USB cable.
+##### undefined reference to symbol 'log10@@GLIBC_2.2.5'
+```console
+/usr/bin/ld: ios_webkit_debug_proxy-char_buffer.o: undefined reference to symbol 'log10@@GLIBC_2.2.5'
+//lib/x86_64-linux-gnu/libm.so.6: error adding symbols: DSO missing from command line
+```
 
+Run this before `make`: `./configure LIBS="-lm"`
+
+##### error while loading shared libraries: libimobiledevice.so.6
+```console
+ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.so.6: cannot open shared object file: No such file or directory
+```
+
+Run `sudo ldconfig`
+
+##### idevice_id not found
+
+The `idevice_id` executable may be found as part of the libimobiledevice-utils package.
+
+##### could not start com.apple.webinspector! success
+
+[Remove and rebuild libimobiledevice](https://github.com/google/ios-webkit-debug-proxy/issues/82#issuecomment-74205898).
+
+##### Could not connect to lockdownd
 > Could not connect to lockdownd. Exiting.: No such file or directory. Unable to attach <long id> inspector ios_webkit_debug_proxy
 
 Check the device for [a prompt to trust the connected computer](http://i.stack.imgur.com/hPaqX.png). Choose "Trust" and try again.
+
+##### If no luck so far...
+Lastly, always try replugging in the USB cable.
+
 
 ## Design
 
