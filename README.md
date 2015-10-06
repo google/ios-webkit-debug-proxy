@@ -69,7 +69,7 @@ Click through to view tabs available on each, and click through again to open th
 
 By default, the DevTools UI frontend that iwdp uses is from:
 
-    http://chrome-devtools-frontend.appspot.com/static/18.0.1025.74/devtools.html
+    http://chrome-devtools-frontend.appspot.com/static/27.0.1453.93/devtools.html
 
 You can use the `-f` argument to specify different frontend source, like Chrome's local DevTools, a local
 [Chromium checkout](https://chromium.googlesource.com/chromium/src/+/master/third_party/WebKit/Source/devtools/) or another URL:
