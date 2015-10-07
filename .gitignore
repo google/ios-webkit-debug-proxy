@@ -1,6 +1,9 @@
 # Compiled source
 *.o
+*.lo
+*.la
 .deps
+.libs
 src/ios_webkit_debug_proxy
 examples/dl_client
 examples/wi_client
@@ -30,3 +33,8 @@ ltmain.sh
 install-sh
 missing
 stamp-h1
+libtool
+*~
+
+# Vim
+*.sw[o-p]
