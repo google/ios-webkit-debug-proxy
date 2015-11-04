@@ -1,6 +1,10 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2014 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
@@ -16,6 +20,7 @@
 #include <uuid/uuid.h>
 #endif
 
+#include "asprintf.h"
 #include "rpc.h"
 
 

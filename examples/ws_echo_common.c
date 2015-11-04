@@ -4,17 +4,25 @@
 //
 // A minimal websocket "echo" server
 //
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #define _GNU_SOURCE
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
+#endif
 
 #include "ws_echo_common.h"
 #include "websocket.h"
-
+#include "asprintf.h"
 
 // websocket callbacks:
 
