@@ -1,6 +1,10 @@
 // Google BSD license http://code.google.com/google_bsd_license.html
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdbool.h>
@@ -8,6 +12,29 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
+
+#ifndef HAVE_HTOBE64
+#ifdef WORDS_BIGENDIAN
+#define htobe64(x) (x)
+#else
+#define htobe64(x) ((((x) & 0xFF00000000000000ull) >> 56) \
+                  | (((x) & 0x00FF000000000000ull) >> 40) \
+                  | (((x) & 0x0000FF0000000000ull) >> 24) \
+                  | (((x) & 0x000000FF00000000ull) >> 8) \
+                  | (((x) & 0x00000000FF000000ull) << 8) \
+                  | (((x) & 0x0000000000FF0000ull) << 24) \
+                  | (((x) & 0x000000000000FF00ull) << 40) \
+                  | (((x) & 0x00000000000000FFull) << 56))
+#endif
+#endif
+
+#include "strndup.h"
+#include "strcasestr.h"
 #include "websocket.h"
 #include "char_buffer.h"
 
@@ -15,19 +42,6 @@
 #include "sha1.h"
 
 #include "validate_utf8.h"
-
-#ifndef htobe64
-#ifdef __APPLE__
-#include <libkern/OSByteOrder.h>
-#define htobe64(h) OSSwapHostToBigInt64(h)
-#elif _MSC_VER
-#define htobe64(h) _byteswap_uint64(h)
-#endif
-#endif
-
-#ifndef htons
-#include <arpa/inet.h>
-#endif
 
 typedef int8_t ws_state;
 #define STATE_ERROR 1
