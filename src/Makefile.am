@@ -1,7 +1,7 @@
 # Google BSD license http://code.google.com/google_bsd_license.html
 # Copyright 2012 Google Inc. wrightt@google.com
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/include/iwdp
 
 AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(libpcreposix_CFLAGS)
 AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(libpcreposix_LIBS)

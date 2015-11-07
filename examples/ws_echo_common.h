@@ -17,7 +17,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "websocket.h"
+#include <iwdp/websocket.h>
 
 struct my_struct {
   int fd;

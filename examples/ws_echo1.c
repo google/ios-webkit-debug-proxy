@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "ws_echo_common.h"
-#include "websocket.h"
+#include <iwdp/websocket.h>
 
 #ifdef WIN32
 #include <windows.h>

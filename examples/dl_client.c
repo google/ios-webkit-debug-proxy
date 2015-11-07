@@ -20,7 +20,7 @@
 #endif
 #include <unistd.h>
 
-#include "device_listener.h"
+#include <iwdp/device_listener.h>
 
 struct my_struct {
   int fd;

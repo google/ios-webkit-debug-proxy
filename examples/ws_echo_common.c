@@ -21,7 +21,7 @@
 #endif
 
 #include "ws_echo_common.h"
-#include "websocket.h"
+#include <iwdp/websocket.h>
 #include "asprintf.h"
 
 // websocket callbacks:
