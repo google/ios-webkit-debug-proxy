@@ -1,7 +1,7 @@
 language: c
 
 script:
-    - add-apt-repository ppa:martin-salbaba/ppa+libimobiledevice -y
+    - sudo add-apt-repository ppa:martin-salbaba/ppa+libimobiledevice -y
     - sudo apt-get update
     - sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev -y
     - ./autogen.sh
