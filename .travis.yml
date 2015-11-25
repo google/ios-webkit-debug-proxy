@@ -1,5 +1,4 @@
 language: c
-sudo: false
 
 script:
     - sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev
