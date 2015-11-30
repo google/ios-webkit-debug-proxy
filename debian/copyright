@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: ios-webkit-debug-proxy
-Source: <url://example.com>
+Source: https://github.com/google/ios-webkit-debug-proxy
 
 Files: *
 Copyright: 2012 Google Inc. <wrightt@google.com>

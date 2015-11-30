@@ -1,5 +1,5 @@
 Source: ios-webkit-debug-proxy
-Section: unknown
+Section: debug
 Priority: optional
 Maintainer: m.galbusera <max.galbusera@gmail.com>
 Build-Depends: debhelper (>= 8.0.0), autotools-dev
@@ -11,4 +11,5 @@ Package: ios-webkit-debug-proxy
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: A DevTools proxy for iOS devices.
- A DevTools proxy (Chrome Remote Debugging Protocol) for iOS devices (Safari Remote Web Inspector).
+ A DevTools proxy (Chrome Remote Debugging Protocol) 
+ for iOS devices (Safari Remote Web Inspector).
