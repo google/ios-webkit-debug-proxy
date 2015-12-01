@@ -24,12 +24,19 @@ script:
     #Tools to build
     - sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev -y
     - sudo apt-get install debhelper dh-make -y
+    - sudo apt-get install libparse-debcontrol-perl -y
 
     #Build
     - ./autogen.sh
     - make
+
+    #Create changelog
+    - dch -v $(git describe --tags $(git rev-list --tags --max-count=1)) -m "New upstream version" -D stable --create --package $GITHUB_REPO --controlmaint
+
+    #Make package
     - dpkg-buildpackage -rfakeroot -us -uc
 
+    #The .deb is in the parent folder
     - cd ..
 
     #Download github-release (https://github.com/aktau/github-release)
