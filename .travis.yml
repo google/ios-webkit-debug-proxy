@@ -23,7 +23,7 @@ script:
 
     #Tools to build
     - sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev -y
-    - sudo apt-get install debhelper dh-make -y
+    - sudo apt-get install debhelper dh-make devscripts -y
     - sudo apt-get install libparse-debcontrol-perl -y
 
     #Build
