@@ -54,7 +54,7 @@ fi
 # Check for operating system
 AC_MSG_CHECKING([whether to enable WIN32 build settings])
 case ${host_os} in
-  *mingw32*|*cygwin*)
+  *mingw32*|*msys*|*cygwin*)
     win32=true
     AC_MSG_RESULT([yes])
     AC_DEFINE(WIN32_LEAN_AND_MEAN, 1, [Define to limit the scope of windows.h])
