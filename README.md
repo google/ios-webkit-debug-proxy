@@ -152,6 +152,12 @@ The `idevice_id` executable may be found as part of the libimobiledevice-utils p
 
 Check the device for [a prompt to trust the connected computer](http://i.stack.imgur.com/hPaqX.png). Choose "Trust" and try again.
 
+##### Can not see Simulator
+
+  - Make sure you started simulator before the proxy
+  - Check that webinspector switch is enabled (Settings -> Safari -> Advanced -> Web Inspector)
+  - Most likely simulator's web inspector daemon listens on ipv6 interface, check that you have `::1 localhost` line in `/etc/hosts`
+
 ##### If no luck so far...
 Lastly, always try replugging in the USB cable.
 
