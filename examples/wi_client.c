@@ -4,6 +4,9 @@
 //
 // A minimal webinspector client
 //
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <errno.h>
 #include <signal.h>
@@ -11,10 +14,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
+#endif
 #include <unistd.h>
 
-#include "webinspector.h"
+#include <iwdp/webinspector.h>
 
 // our state
 struct my_wi_struct {
@@ -121,7 +129,11 @@ int main(int argc, char **argv) {
   size_t buf_length = 1024;
   while (!quit_flag) {
     ssize_t read_bytes = recv(fd, buf, buf_length, 0);
+#ifndef WIN32
     if (read_bytes < 0 && errno == EWOULDBLOCK) {
+#else
+    if (read_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
+#endif
       continue;
     }
     if (wi->on_recv(wi, buf, read_bytes)) {
@@ -135,7 +147,11 @@ int main(int argc, char **argv) {
   memset(my_wi, 0, sizeof(struct my_wi_struct));
   free(my_wi);
   if (fd >= 0) {
+#ifndef WIN32
     close(fd);
+#else
+    closesocket(fd);
+#endif
   }
   return 0;
 }

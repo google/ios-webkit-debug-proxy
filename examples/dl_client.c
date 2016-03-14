@@ -4,15 +4,23 @@
 //
 // An example device_listener client
 //
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
+#endif
 #include <unistd.h>
 
-#include "device_listener.h"
+#include <iwdp/device_listener.h>
 
 struct my_struct {
   int fd;
@@ -66,7 +74,11 @@ int main(int argc, char** argv) {
       break;
     }
   }
+#ifndef WIN32
   close(fd);
+#else
+  closesocket(fd);
+#endif
   free(dl->state);
   dl_free(dl);
   return 0;

@@ -5,16 +5,27 @@
 // This "main" connects the debugger to our socket management backend.
 //
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <getopt.h>
 #include <errno.h>
-#include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef HAVE_REGEX_H
+#include <pcre.h>
+#include <pcreposix.h>
+#else
+#include <regex.h>
+#endif
+
+#include "asprintf.h"
 #include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"

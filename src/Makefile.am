@@ -1,10 +1,10 @@
 # Google BSD license http://code.google.com/google_bsd_license.html
 # Copyright 2012 Google Inc. wrightt@google.com
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/include/iwdp
 
-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS)
-AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS)
+AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(libpcreposix_CFLAGS)
+AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(libpcreposix_LIBS)
 
 lib_LTLIBRARIES = libios_webkit_debug_proxy.la
 libios_webkit_debug_proxy_la_LIBADD =
@@ -37,5 +37,6 @@ ios_webkit_debug_proxy_SOURCES = ios_webkit_debug_proxy_main.c \
     validate_utf8.h \
     webinspector.c webinspector.h \
     websocket.c websocket.h
+ios_webkit_debug_proxy_LDADD =
 ios_webkit_debug_proxy_CFLAGS = $(AM_CFLAGS)
 ios_webkit_debug_proxy_LDFLAGS = $(AM_LDFLAGS)

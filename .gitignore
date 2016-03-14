@@ -4,6 +4,7 @@
 *.la
 .deps
 .libs
+*.exe
 src/ios_webkit_debug_proxy
 examples/dl_client
 examples/wi_client
