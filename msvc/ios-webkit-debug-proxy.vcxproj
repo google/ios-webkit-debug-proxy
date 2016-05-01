@@ -207,4 +207,15 @@
     <Error Condition="!Exists('packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets'))" />
     <Error Condition="!Exists('packages\pcre.8.32.0.7\build\native\pcre.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pcre.8.32.0.7\build\native\pcre.targets'))" />
   </Target>
+
+  <ItemGroup>
+    <FilesToCopy Include="$(ProjectDir)\packages\libxml2.redist.2.7.8.7\build\native\bin\v110\Win32\Release\dynamic\cdecl\libxml2.dll"/>
+    <FilesToCopy Include="$(ProjectDir)\packages\libiconv.redist.1.14.0.11\build\native\bin\v110\Win32\Release\dynamic\cdecl\libiconv.dll"/>
+    <FilesToCopy Include="$(ProjectDir)\packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x86\release\*.dll"/>
+    <FilesToCopy Include="$(ProjectDir)\packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\Win32\Release\zlib.dll"/>
+  </ItemGroup>
+
+  <Target Name="CopyFiles" AfterTargets="AfterBuild">
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFolder="$(OutDir)"/>
+  </Target>
 </Project>
