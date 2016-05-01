@@ -1,0 +1,36 @@
+configurations {
+    Toolset { 
+        key : "PlatformToolset"; 
+        choices: { v140 };  
+        // Explicitly Not including pivot variants:  "WindowsKernelModeDriver8.0", "WindowsApplicationForDrivers8.0", "WindowsUserModeDriver8.0" 
+
+        // We're normalizing out the concept of the v140 platform -- Overloading the $(PlatformToolset) variable for additional pivots was a dumb idea.
+        v140.condition = "( $(PlatformToolset.ToLower().IndexOf('v140')) > -1 Or '$(PlatformToolset.ToLower())' == 'windowskernelmodedriver8.0' Or '$(PlatformToolset.ToLower())' == 'windowsapplicationfordrivers8.0' Or '$(PlatformToolset.ToLower())' == 'windowsusermodedriver8.0' )";
+    };
+}
+
+nuget{
+    nuspec{
+        id = ios-webkit-debug-proxy;
+        version : 1.6.{build};
+        title: ios-webkit-debug-proxy;
+        authors: {ios-webkit-debug-proxy Project};
+        owners: {quamotion};
+        licenseUrl: "https://github.com/google/ios-webkit-debug-proxy/blob/master/LICENSE.md";
+        projectUrl: "hhttps://github.com/google/ios-webkit-debug-proxy";
+        iconUrl: "http://www.nuget.org/Content/Images/packageDefaultIcon-50x50.png";
+        requireLicenseAcceptance:false;
+        description: "The ios_webkit_debug_proxy (aka iwdp) allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the Chrome DevTools UI and Chrome Remote Debugging Protocol.";
+        summary: "The ios_webkit_debug_proxy (aka iwdp) allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the Chrome DevTools UI and Chrome Remote Debugging Protocol.";
+        copyright: "https://github.com/google/ios-webkit-debug-proxy/blob/master/LICENSE.md";
+        releaseNotes: "Release 1.6 of ios-webkit-debug-proxy. See https://github.com/libimobiledevice-win32/ios-webkit-debug-proxy for more.";
+        tags: { ios-webkit-debug-proxy, native };
+    }
+
+    files{
+	[x86,v140,debug] {
+            bin: { "Debug\ios-webkit-debug-proxy.exe", "Debug\*.dll" };
+            symbols: Debug\ios-webkit-debug-proxy.pdb;
+        }
+    }
+}
