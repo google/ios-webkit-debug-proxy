@@ -22,7 +22,9 @@
 #include <sys/socket.h>
 #endif
 #include <sys/stat.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>

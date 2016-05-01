@@ -24,7 +24,9 @@ static int wsa_init = 0;
 #include <sys/stat.h>
 #include <sys/un.h>
 #endif
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 #include <plist/plist.h>
 
