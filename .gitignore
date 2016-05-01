@@ -39,3 +39,6 @@ libtool
 
 # Vim
 *.sw[o-p]
+
+# Files used by the Visual Studio build
+ext/

@@ -10,7 +10,9 @@
 #include <string.h>
 
 #ifndef HAVE_REGEX_H
+#ifndef _MSC_VER
 #include <pcre.h>
+#endif
 #include <pcreposix.h>
 #else
 #include <regex.h>
