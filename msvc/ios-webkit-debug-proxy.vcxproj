@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.props" Condition="Exists('packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -17,6 +18,15 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\*.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\*.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{21DAC937-6A81-4ED6-8D04-388A81EF02C2}</ProjectGuid>
@@ -71,15 +81,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(ProjectDir)..\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(ProjectDir)..\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir)..\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir)..\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -87,7 +101,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -100,7 +114,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -115,7 +129,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,7 +146,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,18 +155,51 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="stdafx.h" />
-    <ClInclude Include="targetver.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="ios-webkit-debug-proxy.cpp" />
-    <ClCompile Include="stdafx.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\libimobiledevice.redist.1.2.0.40\build\native\libimobiledevice.redist.targets" Condition="Exists('packages\libimobiledevice.redist.1.2.0.40\build\native\libimobiledevice.redist.targets')" />
+    <Import Project="packages\libimobiledevice.1.2.0.40\build\native\libimobiledevice.targets" Condition="Exists('packages\libimobiledevice.1.2.0.40\build\native\libimobiledevice.targets')" />
+    <Import Project="packages\libiconv.redist.1.14.0.11\build\native\libiconv.redist.targets" Condition="Exists('packages\libiconv.redist.1.14.0.11\build\native\libiconv.redist.targets')" />
+    <Import Project="packages\libiconv.1.14.0.11\build\native\libiconv.targets" Condition="Exists('packages\libiconv.1.14.0.11\build\native\libiconv.targets')" />
+    <Import Project="packages\libplist.redist.1.12.49\build\native\libplist.redist.targets" Condition="Exists('packages\libplist.redist.1.12.49\build\native\libplist.redist.targets')" />
+    <Import Project="packages\libxml2.redist.2.7.8.7\build\native\libxml2.redist.targets" Condition="Exists('packages\libxml2.redist.2.7.8.7\build\native\libxml2.redist.targets')" />
+    <Import Project="packages\libxml2.2.7.8.7\build\native\libxml2.targets" Condition="Exists('packages\libxml2.2.7.8.7\build\native\libxml2.targets')" />
+    <Import Project="packages\libplist.1.12.49\build\native\libplist.targets" Condition="Exists('packages\libplist.1.12.49\build\native\libplist.targets')" />
+    <Import Project="packages\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.targets" Condition="Exists('packages\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.targets')" />
+    <Import Project="packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.targets" Condition="Exists('packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.targets')" />
+    <Import Project="packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.targets" Condition="Exists('packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.targets')" />
+    <Import Project="packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.targets" Condition="Exists('packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.targets')" />
+    <Import Project="packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.targets" Condition="Exists('packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.targets')" />
+    <Import Project="packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.targets" Condition="Exists('packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.targets')" />
+    <Import Project="packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.targets" Condition="Exists('packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.targets')" />
+    <Import Project="packages\bzip2.redist.1.0.6.7\build\native\bzip2.redist.targets" Condition="Exists('packages\bzip2.redist.1.0.6.7\build\native\bzip2.redist.targets')" />
+    <Import Project="packages\bzip2.1.0.6.7\build\native\bzip2.targets" Condition="Exists('packages\bzip2.1.0.6.7\build\native\bzip2.targets')" />
+    <Import Project="packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets" Condition="Exists('packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets')" />
+    <Import Project="packages\pcre.8.32.0.7\build\native\pcre.targets" Condition="Exists('packages\pcre.8.32.0.7\build\native\pcre.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\libimobiledevice.redist.1.2.0.40\build\native\libimobiledevice.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libimobiledevice.redist.1.2.0.40\build\native\libimobiledevice.redist.targets'))" />
+    <Error Condition="!Exists('packages\libimobiledevice.1.2.0.40\build\native\libimobiledevice.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libimobiledevice.1.2.0.40\build\native\libimobiledevice.targets'))" />
+    <Error Condition="!Exists('packages\libiconv.redist.1.14.0.11\build\native\libiconv.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libiconv.redist.1.14.0.11\build\native\libiconv.redist.targets'))" />
+    <Error Condition="!Exists('packages\libiconv.1.14.0.11\build\native\libiconv.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libiconv.1.14.0.11\build\native\libiconv.targets'))" />
+    <Error Condition="!Exists('packages\libplist.redist.1.12.49\build\native\libplist.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libplist.redist.1.12.49\build\native\libplist.redist.targets'))" />
+    <Error Condition="!Exists('packages\libxml2.redist.2.7.8.7\build\native\libxml2.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libxml2.redist.2.7.8.7\build\native\libxml2.redist.targets'))" />
+    <Error Condition="!Exists('packages\libxml2.2.7.8.7\build\native\libxml2.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libxml2.2.7.8.7\build\native\libxml2.targets'))" />
+    <Error Condition="!Exists('packages\libplist.1.12.49\build\native\libplist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\libplist.1.12.49\build\native\libplist.targets'))" />
+    <Error Condition="!Exists('packages\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v120.windesktop.msvcstl.dyn.rt-dyn.targets'))" />
+    <Error Condition="!Exists('packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x64.targets'))" />
+    <Error Condition="!Exists('packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v120.windesktop.msvcstl.dyn.rt-dyn.x86.targets'))" />
+    <Error Condition="!Exists('packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\build\native\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.targets'))" />
+    <Error Condition="!Exists('packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x64.targets'))" />
+    <Error Condition="!Exists('packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.1.0.2.0\build\native\openssl.v140.windesktop.msvcstl.dyn.rt-dyn.x86.targets'))" />
+    <Error Condition="!Exists('packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.props'))" />
+    <Error Condition="!Exists('packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\fix8.dependencies.getopt.1.0.20151130.1\build\native\fix8.dependencies.getopt.targets'))" />
+    <Error Condition="!Exists('packages\bzip2.redist.1.0.6.7\build\native\bzip2.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\bzip2.redist.1.0.6.7\build\native\bzip2.redist.targets'))" />
+    <Error Condition="!Exists('packages\bzip2.1.0.6.7\build\native\bzip2.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\bzip2.1.0.6.7\build\native\bzip2.targets'))" />
+    <Error Condition="!Exists('packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pcre.redist.8.32.0.7\build\native\pcre.redist.targets'))" />
+    <Error Condition="!Exists('packages\pcre.8.32.0.7\build\native\pcre.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pcre.8.32.0.7\build\native\pcre.targets'))" />
+  </Target>
 </Project>
