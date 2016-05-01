@@ -28,8 +28,10 @@ static int wsa_init = 0;
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #endif
+#ifndef _MSC_VER
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 
 #include "asprintf.h"
 #include "char_buffer.h"

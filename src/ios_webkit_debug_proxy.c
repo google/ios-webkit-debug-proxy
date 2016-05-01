@@ -14,9 +14,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#else
+#include <fcntl.h>
+#endif
+#include <sys/stat.h>
 
 #include "asprintf.h"
 #include "stpcpy.h"
