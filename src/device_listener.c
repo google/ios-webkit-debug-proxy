@@ -14,8 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef WIN32
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 static int wsa_init = 0;
 #else
 #include <resolv.h>

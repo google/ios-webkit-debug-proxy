@@ -17,8 +17,8 @@
 #ifndef WINVER
 #define WINVER 0x0501
 #endif
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 static int wsa_init = 0;
 #include <ws2tcpip.h>
 #else
