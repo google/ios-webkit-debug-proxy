@@ -43,37 +43,21 @@ struct wi_private {
 // CONNECT
 //
 
-// based on libimobiledevice/src/idevice.h
-enum connection_type {
-  CONNECTION_USBMUXD = 1
-};
-struct idevice_connection_private {
-  char *udid;  // added in v1.1.6
-  enum connection_type type;
-  void *data;
-  void *ssl_data;
-};
-
-wi_status idevice_connection_get_fd(idevice_connection_t connection,
+wi_status idevice_connection_get_fd_wrapper(idevice_connection_t connection,
     int *to_fd) {
-  if (!connection || !to_fd) {
+
+  int fd;
+  idevice_error_t err = idevice_connection_get_fd(connection, &fd);
+  if (err < 0) {
     return WI_ERROR;
   }
-  idevice_connection_private *c = (
-      (sizeof(*connection) == sizeof(idevice_connection_private)) ?
-      (idevice_connection_private *) connection : NULL);
-  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) {
-    perror("Invalid idevice_connection struct.  Please verify that "
-        __FILE__ "'s idevice_connection_private matches your version of"
-        " libimbiledevice/src/idevice.h");
-    return WI_ERROR;
-  }
-  int fd = (int)(long)c->data;
+
   struct stat fd_stat;
   if (fstat(fd, &fd_stat) < 0 || !S_ISSOCK(fd_stat.st_mode)) {
     perror("idevice_connection fd is not a socket?");
     return WI_ERROR;
   }
+  
   *to_fd = fd;
   return WI_SUCCESS;
 }
@@ -134,7 +118,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // extract the connection fd
-  if (idevice_connection_get_fd(connection, &fd)) {
+  if (idevice_connection_get_fd_wrapper(connection, &fd)) {
     perror("Unable to get connection file descriptor.");
     goto leave_cleanup;
   }
