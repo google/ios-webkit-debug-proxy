@@ -642,7 +642,7 @@ ws_status ws_read_frame(ws_t self,
   }
 
   *to_is_fin = is_fin;
-  *to_opcode = opcode;
+  *to_opcode = opcode2;
   *to_is_masking = is_masking;
   my->data->tail = data_tail;
   return WS_SUCCESS;
@@ -736,6 +736,13 @@ ws_state ws_recv_frame(ws_t self) {
   if (is_fin || !should_keep) {
     cb_clear(my->data);
   }
+
+  if (is_fin) {
+    my->continued_opcode = 0;
+  } else if (opcode != OPCODE_CONTINUATION) {
+    my->continued_opcode = opcode;
+  }
+
   if (opcode == OPCODE_CLOSE) {
     return STATE_CLOSED;
   }
