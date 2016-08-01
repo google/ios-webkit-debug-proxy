@@ -214,6 +214,8 @@ rpc_status rpc_send_forwardSocketSetup(rpc_t self, const char *connection_id,
   plist_t args = rpc_new_args(connection_id);
   plist_dict_set_item(args, "WIRApplicationIdentifierKey",
       plist_new_string(app_id));
+  plist_dict_set_item(args, "WIRAutomaticallyPause",
+      plist_new_bool(false));
   plist_dict_set_item(args, "WIRPageIdentifierKey",
       plist_new_uint(page_id));
   plist_dict_set_item(args, "WIRSenderKey",
@@ -477,6 +479,7 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
   if (!selector) {
     return RPC_ERROR;
   }
+
   if (!strcmp(selector, "_rpc_reportSetup:")) {
     if (!rpc_recv_reportSetup(self, args)) {
       return RPC_SUCCESS;
@@ -505,6 +508,8 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
     if (!rpc_recv_applicationUpdated(self, args)) {
       return RPC_SUCCESS;
     }
+  } else if (!strcmp(selector, "_rpc_reportConnectedDriverList:")) {
+    return RPC_SUCCESS;
   }
 
   // invalid msg
@@ -683,6 +688,7 @@ rpc_status rpc_parse_pages(const plist_t node, rpc_page_t **to_pages) {
       plist_get_node_type(node) != PLIST_DICT) {
     return RPC_ERROR;
   }
+
   *to_pages = NULL;
   size_t length = plist_dict_get_size(node);
   rpc_page_t *pages = (rpc_page_t *)calloc(length + 1, sizeof(rpc_page_t));
