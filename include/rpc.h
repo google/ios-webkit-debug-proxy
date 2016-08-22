@@ -27,9 +27,13 @@ rpc_status rpc_new_uuid(char **to_uuid);
 struct rpc_app_struct {
   char *app_id;
   char *app_name;
+  char *host_id;
   bool is_proxy;
 };
 typedef struct rpc_app_struct *rpc_app_t;
+rpc_app_t rpc_new_app();
+void rpc_free_app(rpc_app_t app);
+rpc_status rpc_copy_app(rpc_app_t app, rpc_app_t *to_app);
 
 struct rpc_page_struct {
   uint32_t page_id;
