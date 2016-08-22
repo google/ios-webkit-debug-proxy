@@ -100,6 +100,7 @@ struct iwdp_iport_struct {
   // null if the device is detached
   iwdp_iwi_t iwi;
 };
+
 typedef struct iwdp_iport_struct *iwdp_iport_t;
 iwdp_iport_t iwdp_iport_new();
 void iwdp_iport_free(iwdp_iport_t iport);
@@ -119,12 +120,14 @@ struct iwdp_iwi_struct {
   char *connection_id;
 
   rpc_t rpc;  // plist parser
+  rpc_app_t app;
 
   bool connected;
   uint32_t max_page_num; // > 0
   ht_t app_id_to_true;   // set of app_ids
   ht_t page_num_to_ipage;
 };
+
 iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug);
 void iwdp_iwi_free(iwdp_iwi_t iwi);
 
@@ -175,6 +178,7 @@ struct iwdp_ifs_struct {
   // static server
   int fs_fd;
 };
+
 iwdp_ifs_t iwdp_ifs_new();
 void iwdp_ifs_free(iwdp_ifs_t ifs);
 
@@ -196,6 +200,7 @@ struct iwdp_ipage_struct {
   // owner is iport->ws_id_to_iws
   iwdp_iws_t iws;
 };
+
 iwdp_ipage_t iwdp_ipage_new();
 void iwdp_ipage_free(iwdp_ipage_t ipage);
 int iwdp_ipage_cmp(const void *a, const void *b);
@@ -254,6 +259,8 @@ void iwdp_log_disconnect(iwdp_iport_t iport) {
         iport->device_name, iport->device_id);
   }
 }
+
+#define SAFARI_NAME "Safari"
 
 //
 // device_listener
@@ -473,6 +480,7 @@ iwdp_status iwdp_iport_accept(iwdp_t self, iwdp_iport_t iport, int ws_fd,
   *to_iws = iws;
   return IWDP_SUCCESS;
 }
+
 iwdp_status iwdp_on_accept(iwdp_t self, int s_fd, void *value,
     int fd, void **to_value) {
   int type = ((iwdp_type_t)value)->type;
@@ -1165,6 +1173,12 @@ rpc_status iwdp_add_app_id(rpc_t rpc, const char *app_id) {
 }
 
 rpc_status iwdp_on_applicationConnected(rpc_t rpc, const rpc_app_t app) {
+  if (!strcmp(app->app_name, SAFARI_NAME)) {
+    iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
+    rpc_app_t to_app = NULL;
+    rpc_copy_app(app, &to_app);
+    iwi->app = to_app;
+  }
   return iwdp_add_app_id(rpc, app->app_id);
 }
 
@@ -1264,6 +1278,7 @@ rpc_status iwdp_remove_app_id(rpc_t rpc, const char *app_id) {
   free(old_app_id);
   return RPC_SUCCESS;
 }
+
 rpc_status iwdp_on_applicationDisconnected(rpc_t rpc, const rpc_app_t app) {
   return iwdp_remove_app_id(rpc, app->app_id);
 }
@@ -1305,6 +1320,11 @@ rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
     return RPC_ERROR;  // Inspector closed?
   }
   if (!ht_get_value(iwi->app_id_to_true, app_id)) {
+    iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
+    rpc_app_t app = iwi->app;
+    if (app && !strcmp(app->app_name, SAFARI_NAME)) {
+      return rpc->send_forwardGetListing(rpc, iwi->connection_id, app->app_id);
+    }
     return self->on_error(self, "Unknown app_id %s", app_id);
   }
   ht_t ipage_ht = iwi->page_num_to_ipage;
@@ -1411,6 +1431,7 @@ void iwdp_free(iwdp_t self) {
     free(self);
   }
 }
+
 iwdp_t iwdp_new(const char *frontend) {
   iwdp_t self = (iwdp_t)malloc(sizeof(struct iwdp_struct));
   iwdp_private_t my = (iwdp_private_t)malloc(sizeof(struct iwdp_private));
@@ -1442,6 +1463,7 @@ void iwdp_idl_free(iwdp_idl_t idl) {
     free(idl);
   }
 }
+
 iwdp_idl_t iwdp_idl_new() {
   iwdp_idl_t idl = (iwdp_idl_t)malloc(sizeof(struct iwdp_idl_struct));
   dl_t dl = dl_new();
@@ -1468,6 +1490,7 @@ void iwdp_iport_free(iwdp_iport_t iport) {
     free(iport);
   }
 }
+
 iwdp_iport_t iwdp_iport_new() {
   iwdp_iport_t iport = (iwdp_iport_t)malloc(sizeof(struct iwdp_iport_struct));
   if (!iport) {
@@ -1493,6 +1516,7 @@ int iwdp_iport_cmp(const void *a, const void *b) {
   uint32_t pb = ipb->port;
   return (pa == pb ? 0 : pa < pb ? -1 : 1);
 }
+
 char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
     const char *host) {
   // count ports
@@ -1583,6 +1607,7 @@ void iwdp_iwi_free(iwdp_iwi_t iwi) {
   if (iwi) {
     wi_free(iwi->wi);
     rpc_free(iwi->rpc);
+    rpc_free_app(iwi->app);
     // TODO free ht_values?
     free(iwi->connection_id);
     ht_free(iwi->app_id_to_true);
@@ -1591,6 +1616,7 @@ void iwdp_iwi_free(iwdp_iwi_t iwi) {
     free(iwi);
   }
 }
+
 iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool *is_debug) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)malloc(sizeof(struct iwdp_iwi_struct));
   if (!iwi) {
@@ -1633,6 +1659,7 @@ void iwdp_iws_free(iwdp_iws_t iws) {
     free(iws);
   }
 }
+
 iwdp_iws_t iwdp_iws_new(bool *is_debug) {
   iwdp_iws_t iws = (iwdp_iws_t)malloc(sizeof(struct iwdp_iws_struct));
   if (!iws) {
@@ -1664,6 +1691,7 @@ void iwdp_ifs_free(iwdp_ifs_t ifs) {
     free(ifs);
   }
 }
+
 iwdp_ifs_t iwdp_ifs_new() {
   iwdp_ifs_t ifs = (iwdp_ifs_t)malloc(sizeof(struct iwdp_ifs_struct));
   if (ifs) {
@@ -1684,6 +1712,7 @@ void iwdp_ipage_free(iwdp_ipage_t ipage) {
     free(ipage);
   }
 }
+
 iwdp_ipage_t iwdp_ipage_new() {
   iwdp_ipage_t ipage = (iwdp_ipage_t)malloc(sizeof(struct iwdp_ipage_struct));
   if (ipage) {

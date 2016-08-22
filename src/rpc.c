@@ -538,6 +538,7 @@ void rpc_free(rpc_t self) {
     free(self);
   }
 }
+
 rpc_t rpc_new() {
   rpc_t self = (rpc_t)malloc(sizeof(struct rpc_struct));
   if (!self) {
@@ -563,6 +564,7 @@ rpc_app_t rpc_new_app() {
   }
   return app;
 }
+
 void rpc_free_app(rpc_app_t app) {
   if (app) {
     free(app->app_id);
@@ -571,6 +573,20 @@ void rpc_free_app(rpc_app_t app) {
     free(app);
   }
 }
+
+rpc_status rpc_copy_app(rpc_app_t app, rpc_app_t *to_app) {
+  rpc_app_t new_app = (to_app ? rpc_new_app() : NULL);
+  if (!new_app) {
+    return RPC_ERROR;
+  }
+
+  new_app->app_id = strdup(app->app_id);
+  new_app->app_name = strdup(app->app_name);
+  new_app->is_proxy = app->is_proxy;
+  *to_app = new_app;
+  return RPC_SUCCESS;
+}
+
 rpc_status rpc_parse_app(const plist_t node, rpc_app_t *to_app) {
   rpc_app_t app = (to_app ? rpc_new_app() : NULL);
   if (!app ||
@@ -590,7 +606,6 @@ rpc_status rpc_parse_app(const plist_t node, rpc_app_t *to_app) {
   return RPC_SUCCESS;
 }
 
-
 void rpc_free_apps(rpc_app_t *apps) {
   if (apps) {
     rpc_app_t *a = apps;
@@ -600,6 +615,7 @@ void rpc_free_apps(rpc_app_t *apps) {
     free(apps);
   }
 }
+
 rpc_status rpc_parse_apps(const plist_t node, rpc_app_t **to_apps) {
   if (!to_apps) {
     return RPC_ERROR;
