@@ -1,4 +1,4 @@
-http://code.google.com/google_bsd_license.html
+https://developers.google.com/google-bsd-license
 
 Copyright 2012, Google Inc.
 All rights reserved.
