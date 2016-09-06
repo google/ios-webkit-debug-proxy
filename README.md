@@ -185,7 +185,7 @@ View the [design document](design.md) for an overview of the source layout and a
 
 ## License and Copyright
 
-Google BSD license <http://code.google.com/google_bsd_license.html>
+Google BSD license <https://developers.google.com/google-bsd-license>
 Copyright 2012 Google Inc.  <wrightt@google.com>
 
 The proxy uses the following open-source packages:
