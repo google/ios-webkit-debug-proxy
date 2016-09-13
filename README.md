@@ -140,11 +140,7 @@ ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.s
 Run `sudo ldconfig`
 
 ##### error during compilation
-```console
-implicit declaration of function 'idevice_connection_get_fd' is invalid in C99
-idevice_error_t err = idevice_connection_get_fd(connection, &fd);
-```
-Build with master branch of libimobildevice or if you're using homebrew `brew uninstall libimobiledevice && brew install --HEAD libimobiledevice`
+To build with libimobiledevice from `HEAD`, please use [libimobiledevice_idevice_connection](https://github.com/google/ios-webkit-debug-proxy/tree/libimobiledevice_idevice_connection) branch
 
 ##### idevice_id not found
 
