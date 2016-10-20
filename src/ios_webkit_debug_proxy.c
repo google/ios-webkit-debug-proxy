@@ -260,7 +260,6 @@ void iwdp_log_disconnect(iwdp_iport_t iport) {
   }
 }
 
-#define SAFARI_NAME "Safari"
 
 //
 // device_listener
@@ -1172,13 +1171,15 @@ rpc_status iwdp_add_app_id(rpc_t rpc, const char *app_id) {
   return rpc->send_forwardGetListing(rpc, iwi->connection_id, app_id);
 }
 
-rpc_status iwdp_on_applicationConnected(rpc_t rpc, const rpc_app_t app) {
-  if (!strcmp(app->app_name, SAFARI_NAME)) {
+void rpc_set_app(rpc_t rpc, const rpc_app_t app) {
     iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
     rpc_app_t to_app = NULL;
     rpc_copy_app(app, &to_app);
     iwi->app = to_app;
-  }
+}
+
+rpc_status iwdp_on_applicationConnected(rpc_t rpc, const rpc_app_t app) {
+  rpc_set_app(rpc, app);
   return iwdp_add_app_id(rpc, app->app_id);
 }
 
@@ -1306,6 +1307,7 @@ rpc_status iwdp_on_reportConnectedApplicationList(rpc_t rpc, const rpc_app_t *ap
   // add new apps
   const rpc_app_t *a;
   for (a = apps; *a; a++) {
+    rpc_set_app(rpc, *a);
     iwdp_add_app_id(rpc, (*a)->app_id);
   }
   return RPC_SUCCESS;
@@ -1322,7 +1324,7 @@ rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
   if (!ht_get_value(iwi->app_id_to_true, app_id)) {
     iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
     rpc_app_t app = iwi->app;
-    if (app && !strcmp(app->app_name, SAFARI_NAME)) {
+    if (app) {
       return rpc->send_forwardGetListing(rpc, iwi->connection_id, app->app_id);
     }
     return self->on_error(self, "Unknown app_id %s", app_id);
