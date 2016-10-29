@@ -1049,7 +1049,7 @@ ws_status iwdp_on_http_request(ws_t ws,
     }
     if (!strlen(resource) || !strcmp(resource, "/")) {
       return iwdp_on_list_request(ws, is_head, false);
-    } else if (!strcmp(resource, "/json")) {
+    } else if (!strcmp(resource, "/json") || !strcmp(resource, "/json/list")) {
       return iwdp_on_list_request(ws, is_head, true);
     } else if (!strncmp(resource, "/devtools/", 10)) {
       return iwdp_on_static_request(ws, is_head, resource,
