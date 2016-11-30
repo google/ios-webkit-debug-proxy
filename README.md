@@ -91,6 +91,10 @@ The `-f` value must end in ".html". Due to security reasons, `https` URLs will n
 
 To disable the frontend proxy, use the `--no-frontend` argument.
 
+#### DevTools note
+
+In recent version of Chrome and Webkit there're major discrepancies in dev tools protocols, this is why latest Chrome tools are not very functional with this utility. Maintaining the compatibility is out of the scope of the current project, in this regard you could find [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project useful. Another option is Webkit devtools extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
+
 #### Port assigment
 
 The default configuration works well for most developers. The device_id-to-port assignment defaults to:
