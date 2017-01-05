@@ -13,6 +13,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
+PKG_PROG_PKG_CONFIG
 
 # Checks for libraries.
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
@@ -25,6 +26,13 @@ AC_CHECK_LIB([imobiledevice], [idevice_new],
              [ ], [AC_MSG_FAILURE([*** Unable to link with libimobiledevice])],
              [$libimobiledevice_LIBS])
 LT_INIT
+
+# Defines versions of required modules
+libimobiledevice_version=`$PKG_CONFIG --modversion libimobiledevice-1.0`
+libplist_version=`$PKG_CONFIG --modversion libplist`
+
+AC_DEFINE_UNQUOTED([LIBIMOBILEDEVICE_VERSION], ["$libimobiledevice_version"], [ ])
+AC_DEFINE_UNQUOTED([LIBPLIST_VERSION], ["$libplist_version"], [ ])
 
 # Checks for header files.
 AC_HEADER_STDC

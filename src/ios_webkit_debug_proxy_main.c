@@ -5,6 +5,10 @@
 // This "main" connects the debugger to our socket management backend.
 //
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <getopt.h>
 #include <errno.h>
@@ -203,7 +207,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
     {"no-frontend", 0, NULL, 'F'},
     {"debug", 0, NULL, 'd'},
     {"help", 0, NULL, 'h'},
-
+    {"version", 0, NULL, 'V'},
     {NULL, 0, NULL, 0}
   };
   const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
@@ -215,13 +219,20 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
 
   int ret = 0;
   while (!ret) {
-    int c = getopt_long(argc, argv, "hu:c:f:Fd", longopts, (int *)0);
+    int c = getopt_long(argc, argv, "hVu:c:f:Fd", longopts, (int *)0);
     if (c == -1) {
       break;
     }
     switch (c) {
       case 'h':
         ret = -1;
+        break;
+      case 'V':
+        printf(
+            "%s\n"
+            "Built with libimobiledevice v%s, libplist v%s\n",
+            PACKAGE_STRING, LIBIMOBILEDEVICE_VERSION, LIBPLIST_VERSION);
+        ret = -2;
         break;
       case 'u':
         {
@@ -263,15 +274,16 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
         break;
     }
   }
+
   if (!ret && ((argc - optind) > 0)) {
     ret = 2;
   }
 
-  if (ret) {
+  if (ret && ret != -2) {
     char *name = strrchr(argv[0], '/');
     printf(
         "Usage: %s [OPTIONS]\n"
-        "iOS WebKit Remote Debugging Protocol Proxy.\n"
+        "iOS WebKit Remote Debugging Protocol Proxy v%s.\n"
         "\n"
         "By default, the proxy will list all attached iOS devices on:\n"
         "  http://localhost:9221\n"
@@ -329,7 +341,8 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
         "\n"
         "  -d, --debug\t\tEnable debug output.\n"
         "  -h, --help\t\tPrint this usage information.\n"
-        "\n", (name ? name + 1 : argv[0]), DEFAULT_CONFIG, DEFAULT_FRONTEND);
+        "  -V, --version\t\tPrint version information and exit.\n"
+        "\n", (name ? name + 1 : argv[0]), PACKAGE_VERSION, DEFAULT_CONFIG, DEFAULT_FRONTEND);
   }
   return ret;
 }
