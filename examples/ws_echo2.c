@@ -4,6 +4,9 @@
 //
 // A select-based websocket "echo" server
 //
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <signal.h>
 #include <stdbool.h>
@@ -12,8 +15,13 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#endif
 #include <errno.h>
 
 #include "socket_manager.h"

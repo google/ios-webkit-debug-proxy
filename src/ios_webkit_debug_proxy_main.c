@@ -12,13 +12,22 @@
 #define _GNU_SOURCE
 #include <getopt.h>
 #include <errno.h>
-#include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef HAVE_REGEX_H
+#ifndef _MSC_VER
+#include <pcre.h>
+#endif
+#include <pcreposix.h>
+#else
+#include <regex.h>
+#endif
+
+#include "asprintf.h"
 #include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"

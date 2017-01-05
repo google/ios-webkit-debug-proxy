@@ -1,0 +1,24 @@
+before_build:
+  - cmd: mkdir ext
+  - cmd: choco install -y wget
+  - cmd: wget "http://downloads.sourceforge.net/project/gnuwin32/pcre/7.0/pcre-7.0-bin.zip" -O ext\pcre-7.0-bin.zip
+  - cmd: wget "http://downloads.sourceforge.net/project/gnuwin32/pcre/7.0/pcre-7.0-lib.zip" -O ext\pcre-7.0-lib.zip
+  - cmd: 7z x ext\pcre-7.0-bin.zip -oext\pcre-7.0-bin
+  - cmd: 7z x ext\pcre-7.0-lib.zip -oext\pcre-7.0-lib
+  - cmd: cd msvc
+  - cmd: nuget restore
+
+build_script:
+  - msbuild ios-webkit-debug-proxy.sln /p:Configuration=Debug /p:Platform=x86 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+
+on_success:
+  - cmd: wget http://coapp.org/files/CoApp.Tools.Powershell.msi
+  - cmd: start /wait msiexec /qb /i CoApp.Tools.Powershell.msi
+  - ps: .\CreateNuGetPackage.ps1 -Build $ENV:APPVEYOR_BUILD_NUMBER
+  - cmd: appveyor PushArtifact ios-webkit-debug-proxy.1.6.%APPVEYOR_BUILD_NUMBER%.nupkg
+  - cmd: appveyor PushArtifact ios-webkit-debug-proxy.symbols.1.6.%APPVEYOR_BUILD_NUMBER%.nupkg
+  - cmd: appveyor PushArtifact ios-webkit-debug-proxy.redist.1.6.%APPVEYOR_BUILD_NUMBER%.nupkg
+
+nuget:
+  project_feed: true
+  account_feed: true

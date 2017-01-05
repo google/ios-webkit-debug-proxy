@@ -49,9 +49,34 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
 # Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_CHECK_FUNCS([memmove memset regcomp select socket stpcpy strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol])
+AC_CHECK_FUNCS([malloc realloc memmove memset regcomp select socket stpcpy strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol strcasestr va_copy vasprintf asprintf stpncpy stpcpy strndup getline htobe64])
+
+# Check for pcre presence if regex.h is absent
+AC_CHECK_HEADER(regex.h, [ac_have_regex_h="yes"], [ac_have_regex_h="no"])
+if test "x$ac_have_regex_h" = "xno"; then
+  PKG_CHECK_MODULES(libpcreposix, libpcreposix, [], [AC_MSG_ERROR([Neither regex.h nor pcre headers were found])])
+else
+  AC_DEFINE(HAVE_REGEX_H, 1, [regex.h is present])
+fi
+
+# Check for operating system
+AC_MSG_CHECKING([whether to enable WIN32 build settings])
+case ${host_os} in
+  *mingw32*|*cygwin*)
+    win32=true
+    AC_MSG_RESULT([yes])
+    AC_DEFINE(WIN32_LEAN_AND_MEAN, 1, [Define to limit the scope of windows.h])
+    AC_DEFINE(__USE_MINGW_ANSI_STDIO, 1, [Define to use C99 printf/snprintf in MinGW])
+    ;;
+  *)
+    win32=false
+    AC_MSG_RESULT([no])
+    ;;
+esac
+AM_CONDITIONAL(WIN32, test x$win32 = xtrue)
+
+# Check endianess
+AC_C_BIGENDIAN
 
 AC_CONFIG_FILES([Makefile src/Makefile include/Makefile examples/Makefile])
 

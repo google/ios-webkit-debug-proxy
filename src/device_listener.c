@@ -1,23 +1,36 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
 #include <math.h>
-#include <resolv.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <winsock2.h>
+#include <windows.h>
+static int wsa_init = 0;
+#else
+#include <resolv.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#endif
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 #include <plist/plist.h>
 
+#include "stpncpy.h"
 #include "char_buffer.h"
 #include "hash_table.h"
 #include "device_listener.h"
@@ -31,6 +44,7 @@
 //
 
 #define USBMUXD_FILE_PATH "/var/run/usbmuxd"
+#define USBMUXD_PORT 27015
 #define TYPE_PLIST 8
 
 struct dl_private {
@@ -41,8 +55,9 @@ struct dl_private {
 };
 
 int dl_connect(int recv_timeout) {
-  const char *filename = USBMUXD_FILE_PATH;
   int fd = -1;
+#ifndef WIN32
+  const char *filename = USBMUXD_FILE_PATH;
   struct stat fst;
   if (stat(filename, &fst) ||
       !S_ISSOCK(fst.st_mode) ||
@@ -65,7 +80,51 @@ int dl_connect(int recv_timeout) {
     if (!opts || fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
       perror("Could not set socket to non-blocking");
     }
-  } else {
+  }
+#else
+  const char *addr = "127.0.0.1";
+
+  WSADATA wsa_data;
+  if (!wsa_init) {
+    if (WSAStartup(MAKEWORD(2,2), &wsa_data) != ERROR_SUCCESS) {
+      fprintf(stderr, "WSAStartup failed!\n");
+      ExitProcess(-1);
+    }
+    wsa_init = 1;
+  }
+
+  struct hostent *hp;
+  struct sockaddr_in saddr;
+
+  hp = gethostbyname(addr);
+  fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  int optval = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&optval, sizeof(int)) != 0) {
+    perror("setsockopt() failed");
+    closesocket(fd);
+    return -1;
+  }
+
+  memset((void *) &saddr, 0, sizeof(saddr));
+  saddr.sin_family = AF_INET;
+  saddr.sin_addr.s_addr = *(uint32_t *) hp->h_addr;
+  saddr.sin_port = htons(USBMUXD_PORT);
+
+  if (connect(fd, (struct sockaddr *) &saddr, sizeof(saddr)) != 0) {
+    perror("Socket connect failed");
+    closesocket(fd);
+    return -2;
+  }
+
+  u_long iMode = 1;
+  if (recv_timeout < 0) {
+    if (ioctlsocket(fd, FIONBIO, &iMode) != 0) {
+      perror("Could not set socket to non-blocking");
+    }
+  }
+#endif
+  else {
     long millis = (recv_timeout > 0 ? recv_timeout : 5000);
     struct timeval tv;
     tv.tv_sec = (time_t) (millis / 1000);

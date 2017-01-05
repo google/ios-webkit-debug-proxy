@@ -1,0 +1,5 @@
+Debug
+packages
+.vs
+*.opendb
+*.db

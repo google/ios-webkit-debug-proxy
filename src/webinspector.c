@@ -1,6 +1,10 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
@@ -10,15 +14,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <winsock2.h>
+#include <windows.h>
+#else
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#endif
 #include <sys/stat.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
 
+#include "asprintf.h"
 #include "char_buffer.h"
 #include "webinspector.h"
 
@@ -69,11 +81,13 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
     return WI_ERROR;
   }
   int fd = (int)(long)c->data;
+#ifndef WIN32
   struct stat fd_stat;
   if (fstat(fd, &fd_stat) < 0 || !S_ISSOCK(fd_stat.st_mode)) {
     perror("idevice_connection fd is not a socket?");
     return WI_ERROR;
   }
+#endif
   *to_fd = fd;
   return WI_SUCCESS;
 }
@@ -140,8 +154,13 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   if (recv_timeout < 0) {
+#ifndef WIN32
     int opts = fcntl(fd, F_GETFL);
     if (!opts || fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
+#else
+    u_long iMode = 1;
+    if (ioctlsocket(fd, FIONBIO, &iMode) != 0) {
+#endif
       perror("Could not set socket to non-blocking");
       goto leave_cleanup;
     }
@@ -162,7 +181,11 @@ int wi_connect(const char *device_id, char **to_device_id,
 
 leave_cleanup:
   if (ret < 0 && fd > 0) {
+#ifndef WIN32
     close(fd);
+#else
+    closesocket(fd);
+#endif
   }
   // don't call usbmuxd_disconnect(fd)!
   //idevice_disconnect(connection);

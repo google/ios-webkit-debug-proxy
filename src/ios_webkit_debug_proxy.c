@@ -1,9 +1,9 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
-//
-//
-//
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -14,10 +14,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#else
+#include <fcntl.h>
+#endif
+#include <sys/stat.h>
 
+#include "asprintf.h"
+#include "stpcpy.h"
+#include "strndup.h"
 #include "char_buffer.h"
 #include "device_listener.h"
 #include "hash_table.h"
