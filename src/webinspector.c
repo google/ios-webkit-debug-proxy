@@ -1,6 +1,10 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
@@ -43,6 +47,7 @@ struct wi_private {
 // CONNECT
 //
 
+#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
 // based on libimobiledevice/src/idevice.h
 enum connection_type {
   CONNECTION_USBMUXD = 1
@@ -77,6 +82,7 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
   *to_fd = fd;
   return WI_SUCCESS;
 }
+#endif
 
 int wi_connect(const char *device_id, char **to_device_id,
     char **to_device_name, int recv_timeout) {

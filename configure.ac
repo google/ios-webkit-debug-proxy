@@ -52,6 +52,7 @@ AC_TYPE_UINT8_T
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memmove memset regcomp select socket stpcpy strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol])
+AC_CHECK_DECL(idevice_connection_get_fd, [AC_DEFINE([HAVE_IDEVICE_CONNECTION_GET_FD], 1, [ ])], [], [#include <libimobiledevice/libimobiledevice.h>])
 
 AC_CONFIG_FILES([Makefile src/Makefile include/Makefile examples/Makefile])
 
