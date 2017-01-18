@@ -1519,6 +1519,30 @@ int iwdp_iport_cmp(const void *a, const void *b) {
   return (pa == pb ? 0 : pa < pb ? -1 : 1);
 }
 
+/*
+ * Escape string value for json output
+ */
+char *iwdp_escape_json_string_val(const char *str) {
+  int len = strlen(str);
+  char* res = (char*)malloc(len * 6 + 1);
+
+  int i, j;
+  for (i = 0, j = 0; i < len; i++, j++) {
+    if (str[i] >= 0 && str[i] < 32) {
+      sprintf(res + j, "\\u%04d", str[i]);
+      j += 5;
+    } else {
+      if (str[i] == '"' || str[i] == '\\') {
+        res[j++] = '\\';
+      }
+      res[j] = str[i];
+    }
+  }
+  res[j] = '\0';
+
+  return res;
+}
+
 char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
     const char *host) {
   // count ports
@@ -1547,15 +1571,25 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
     char *s = NULL;
     if (want_json) {
       if (iport->iwi) {
-        if (asprintf(&s,
+        char* escaped_device_id = iwdp_escape_json_string_val(
+            iport->device_id ? iport->device_id : "");
+        char* escaped_device_name = iwdp_escape_json_string_val(
+            iport->device_name ? iport->device_name : "");
+
+        int res = asprintf(&s,
             "%s{\n"
             "   \"deviceId\": \"%s\",\n"
             "   \"deviceName\": \"%s\",\n"
             "   \"url\": \"%s:%d\"\n"
             "}",
-            (sum_len ? "," : ""), iport->device_id,
-            (iport->device_name ? iport->device_name : ""),
-            (host ? host : "localhost"), iport->port) < 0) {
+            (sum_len ? "," : ""), escaped_device_id, escaped_device_name,
+            (host ? host : "localhost"), iport->port);
+
+        free(escaped_device_id);
+        free(escaped_device_name);
+
+        if (res < 0) {
+          free(items);
           return NULL;  // asprintf failed
         }
       }
@@ -1566,6 +1600,7 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
       if (iport->iwi) {
         if (asprintf(&href, " href=\"http://%s:%d/\"",
             (host ? host : "localhost"), iport->port) < 0) {
+          free(items);
           return NULL;  // asprintf failed
         }
       }
@@ -1574,6 +1609,7 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
           (href ? href : ""), (host ? host : "localhost"),
           iport->port, iport->device_id,
           (iport->device_name ? iport->device_name : "?")) < 0) {
+        free(items);
         return NULL;  // asprintf failed
       }
       free(href);
@@ -1778,7 +1814,12 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
     }
     char *s = NULL;
     if (want_json) {
-      if (asprintf(&s,
+      char* escaped_title = iwdp_escape_json_string_val(
+          ipage->title ? ipage->title : "");
+      char* escaped_app_id = iwdp_escape_json_string_val(
+          ipage->app_id ? ipage->app_id : "");
+
+      int res = asprintf(&s,
           "%s{\n"
           "   \"devtoolsFrontendUrl\": \"%s\",\n"
           "   \"faviconUrl\": \"\",\n"
@@ -1789,11 +1830,15 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           "   \"appId\": \"%s\"\n"
           "}",
           (sum_len ? "," : ""), (href && !ipage->iws ? href : ""),
-          (ipage->url ? ipage->url : ""),
-          (ipage->title ? ipage->title : ""),
-          (ipage->url ? ipage->url : ""),
-          (host ? host : "localhost"), port, ipage->page_num,
-          (ipage->app_id ? ipage->app_id : "")) < 0) {
+          (ipage->url ? ipage->url : ""), escaped_title, (ipage->url ? ipage->url : ""),
+          (host ? host : "localhost"), port, ipage->page_num, escaped_app_id);
+
+      free(escaped_title);
+      free(escaped_app_id);
+
+      if (res < 0) {
+        free(href);
+        free(items);
         return NULL;  // asprintf failed
       }
     } else {
@@ -1805,6 +1850,8 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           (href ? "\"" : ""),
           (ipage->title ? ipage->title : "?"),
           (ipage->url ? ipage->url : "?")) < 0) { // encodeURI?
+        free(href);
+        free(items);
         return NULL;  // asprintf failed
       }
     }
