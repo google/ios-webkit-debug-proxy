@@ -143,9 +143,6 @@ ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.s
 
 Run `sudo ldconfig`
 
-##### error during compilation
-To build with libimobiledevice from `HEAD`, please use [libimobiledevice_idevice_connection](https://github.com/google/ios-webkit-debug-proxy/tree/libimobiledevice_idevice_connection) branch
-
 ##### idevice_id not found
 
 The `idevice_id` executable may be found as part of the libimobiledevice-utils package.
@@ -154,10 +151,18 @@ The `idevice_id` executable may be found as part of the libimobiledevice-utils p
 
 [Remove and rebuild libimobiledevice](https://github.com/google/ios-webkit-debug-proxy/issues/82#issuecomment-74205898).
 
-##### Could not connect to lockdownd
+##### Could not connect to lockdownd (or doesn't work with iOS10+)
 > Could not connect to lockdownd. Exiting.: No such file or directory. Unable to attach <long id> inspector ios_webkit_debug_proxy
 
 Check the device for [a prompt to trust the connected computer](http://i.stack.imgur.com/hPaqX.png). Choose "Trust" and try again.
+
+> Could not connect to lockdownd. Exiting.: Broken pipe. Unable to attach <long id> inspector
+
+Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
+
+    brew update
+    brew reinstall --HEAD libimobiledevice
+    brew reinstall -s ios-webkit-debug-proxy
 
 ##### Can not see Simulator
 
@@ -192,3 +197,4 @@ The proxy uses the following open-source packages:
    - [libplist 1.10](http://cgit.sukimashita.com/libplist.git)
    - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
    - [libimobiledevice 1.1.5](http://cgit.sukimashita.com/libimobiledevice.git)
+   - libimobiledevice 1.2.1 _if your taget iOS10+_
