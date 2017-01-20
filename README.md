@@ -1,6 +1,6 @@
 # iOS WebKit Debug Proxy
 
-The ios_webkit_debug_proxy (aka _iwdp_) allows developers to inspect MobileSafari and UIWebViews on real and simulated iOS devices via the [Chrome DevTools UI](https://developers.google.com/chrome-developer-tools/) and [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol).  DevTools requests are translated into Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html) calls.
+The ios_webkit_debug_proxy (aka _iwdp_) proxies requests from usbmuxd daemon via websocket protocol, allowing developers to send commands to MobileSafari and UIWebViews on real and simulated iOS devices.
 
 ## Installation
 
@@ -67,7 +67,7 @@ Click through to view tabs available on each, and click through again to open th
 
 ### Setting the DevTools UI URL
 
-By default, the DevTools UI frontend that iwdp uses is from:
+[Chrome DevTools UI](https://developers.google.com/chrome-developer-tools/) used as a default frontend:
 
     http://chrome-devtools-frontend.appspot.com/static/27.0.1453.93/devtools.html
 
@@ -91,9 +91,8 @@ The `-f` value must end in ".html". Due to security reasons, `https` URLs will n
 
 To disable the frontend proxy, use the `--no-frontend` argument.
 
-#### DevTools note
-
-In recent version of Chrome and Webkit there're major discrepancies in dev tools protocols, this is why latest Chrome tools are not very functional with this utility. Maintaining the compatibility is out of the scope of the current project, in this regard you could find [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project useful. Another option is Webkit devtools extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
+#### Devtools note
+In recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), this is why latest Chrome tools are not very functional with this utility. Maintaining compatibility of devtools is out of scope of the current project, in this regard you could find [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project useful. Another option is [mozilla/valence](https://github.com/mozilla/valence) remote debugging protocol adapter or Webkit devtools extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
 
 #### Port assigment
 
