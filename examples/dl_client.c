@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "device_listener.h"
+#include "ios-webkit-debug-proxy/device_listener.h"
 
 struct my_struct {
   int fd;

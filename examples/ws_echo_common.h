@@ -17,7 +17,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "websocket.h"
+#include "ios-webkit-debug-proxy/websocket.h"
 
 struct my_struct {
   int fd;

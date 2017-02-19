@@ -16,7 +16,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#include "socket_manager.h"
+#include "ios-webkit-debug-proxy/socket_manager.h"
 #include "ws_echo_common.h"
 
 struct my_sm_struct {

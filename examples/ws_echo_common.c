@@ -13,8 +13,6 @@
 #include <sys/socket.h>
 
 #include "ws_echo_common.h"
-#include "websocket.h"
-
 
 // websocket callbacks:
 

@@ -14,7 +14,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "webinspector.h"
+#include "ios-webkit-debug-proxy/webinspector.h"
 
 // our state
 struct my_wi_struct {

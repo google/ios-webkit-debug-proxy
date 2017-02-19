@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "ws_echo_common.h"
-#include "websocket.h"
+#include "ios-webkit-debug-proxy/websocket.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
