@@ -5,10 +5,16 @@
 #include <config.h>
 #endif
 
-#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef HAVE_REGEX_H
+#include <pcre.h>
+#include <pcreposix.h>
+#else
+#include <regex.h>
+#endif
 
 #include "port_config.h"
 

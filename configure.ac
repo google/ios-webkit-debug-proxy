@@ -51,6 +51,15 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
+
+# Check for pcre presence if regex.h is absent
+AC_CHECK_HEADER(regex.h, [ac_have_regex_h="yes"], [ac_have_regex_h="no"])
+if test "x$ac_have_regex_h" = "xno"; then
+  PKG_CHECK_MODULES(libpcreposix, libpcreposix, [], [AC_MSG_ERROR([Neither regex.h nor pcre headers were found])])
+else
+  AC_DEFINE(HAVE_REGEX_H, 1, [regex.h is present])
+fi
+
 AC_CHECK_FUNCS([memmove memset regcomp select socket stpcpy strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol])
 
 SAVE_CFLAGS=$CFLAGS
