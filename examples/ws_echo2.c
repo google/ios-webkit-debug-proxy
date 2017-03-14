@@ -5,6 +5,10 @@
 // A select-based websocket "echo" server
 //
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
