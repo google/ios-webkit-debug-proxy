@@ -1629,12 +1629,14 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
   char *ret = (char *)calloc(length+1, sizeof(char));
   if (ret) {
     char *tail = ret;
-    tail = stpcpy(tail, header);
+    strcpy(tail, header);
+    tail += strlen(header);
     for (item = items; *item; item++) {
-      tail = stpcpy(tail, *item);
+      strcpy(tail, *item);
+      tail += strlen(*item);
       free(*item);
     }
-    tail = stpcpy(tail, footer);
+    strcpy(tail, footer);
   }
   free(items);
   return ret;
@@ -1890,12 +1892,14 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
   char *ret = (char *)calloc(length+1, sizeof(char));
   if (ret) {
     char *tail = ret;
-    tail = stpcpy(tail, header);
+    strcpy(tail, header);
+    tail += strlen(header);
     for (item = items; *item; item++) {
-      tail = stpcpy(tail, *item);
+      strcpy(tail, *item);
+      tail += strlen(*item);
       free(*item);
     }
-    tail = stpcpy(tail, footer);
+    strcpy(tail, footer);
   }
   if (!want_json) {
     free(header);
