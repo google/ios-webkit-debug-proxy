@@ -120,7 +120,7 @@ dl_status dl_start(dl_t self) {
   tail = dl_sprintf_uint32(tail, 1); // version: 1
   tail = dl_sprintf_uint32(tail, TYPE_PLIST); // type: plist
   tail = dl_sprintf_uint32(tail, 1); // tag: 1
-  tail = stpncpy(tail, xml, xml_length);
+  strncpy(tail, xml, xml_length);
   free(xml);
 
   dl_status ret = self->send_packet(self, packet, length);
