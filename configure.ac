@@ -52,6 +52,22 @@ AC_TYPE_UINT8_T
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 
+# Check for operating system
+AC_MSG_CHECKING([whether to enable WIN32 build settings])
+case ${host_os} in
+  *mingw*|*msys*|*cygwin*)
+    win32=true
+    AC_MSG_RESULT([yes])
+    AC_DEFINE(WIN32_LEAN_AND_MEAN, 1, [Define to limit the scope of windows.h])
+    AC_DEFINE(__USE_MINGW_ANSI_STDIO, 1, [Define to use C99 printf/snprintf in MinGW])
+    ;;
+  *)
+    win32=false
+    AC_MSG_RESULT([no])
+    ;;
+esac
+AM_CONDITIONAL(WIN32, test "x$win32" = "xtrue")
+
 # Check for pcre presence if regex.h is absent
 AC_CHECK_HEADER(regex.h, [ac_have_regex_h="yes"], [ac_have_regex_h="no"])
 if test "x$ac_have_regex_h" = "xno"; then
