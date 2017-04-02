@@ -17,6 +17,8 @@
 #endif
 
 #include "port_config.h"
+#include "strndup.h"
+#include "getline.h"
 
 
 struct pc_entry_struct;

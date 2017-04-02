@@ -76,7 +76,7 @@ else
   AC_DEFINE(HAVE_REGEX_H, 1, [regex.h is present])
 fi
 
-AC_CHECK_FUNCS([memmove memset regcomp select socket strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol])
+AC_CHECK_FUNCS([memmove memset regcomp select socket strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol strcasestr getline])
 
 SAVE_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS $libimobiledevice_CFLAGS"

@@ -35,6 +35,10 @@
 
 #if defined(POLARSSL_SHA1_C)
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 //#include "polarssl/sha1.h"
 #include "sha1.h"
 // END CHANGES

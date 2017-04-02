@@ -19,6 +19,8 @@
 #include "sha1.h"
 
 #include "validate_utf8.h"
+#include "strndup.h"
+#include "strcasestr.h"
 
 typedef int8_t ws_state;
 #define STATE_ERROR 1

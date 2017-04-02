@@ -24,6 +24,7 @@
 #include "rpc.h"
 #include "webinspector.h"
 #include "websocket.h"
+#include "strndup.h"
 
 
 struct iwdp_idl_struct;
