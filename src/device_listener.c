@@ -1,20 +1,29 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <getopt.h>
 #include <math.h>
-#include <resolv.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <resolv.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <unistd.h>
+#endif
 
 #include <plist/plist.h>
 
@@ -30,6 +39,7 @@
 // straight-forward.
 //
 
+#define USBMUXD_SOCKET_PORT 27015
 #define USBMUXD_FILE_PATH "/var/run/usbmuxd"
 #define TYPE_PLIST 8
 
@@ -41,8 +51,44 @@ struct dl_private {
 };
 
 int dl_connect(int recv_timeout) {
-  const char *filename = USBMUXD_FILE_PATH;
   int fd = -1;
+#ifdef WIN32
+  fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (fd == INVALID_SOCKET) {
+    fprintf(stderr, "device_listener: socket function failed with\
+        error %d\n", WSAGetLastError());
+    return -1;
+  }
+
+  struct hostent *host;
+  host = gethostbyname("localhost");
+  if (host == NULL) {
+    fprintf(stderr, "device_listener: gethostbyname function failed with\
+        error %d\n", WSAGetLastError());
+    closesocket(fd);
+    return -2;
+  }
+
+  struct sockaddr_in local;
+  local.sin_family = AF_INET;
+  local.sin_addr.s_addr = *(uint32_t *)host->h_addr;
+  local.sin_port = htons(USBMUXD_SOCKET_PORT);
+
+  if (connect(fd, (SOCKADDR *)&local, sizeof(local)) == SOCKET_ERROR) {
+    fprintf(stderr, "device_listener: connect function failed with\
+        error %d\n", WSAGetLastError());
+    closesocket(fd);
+    return -2;
+  }
+
+  if (recv_timeout < 0) {
+    u_long nb = 1;
+    if (ioctlsocket(fd, FIONBIO, &nb)) {
+      fprintf(stderr, "device_listener: could not set socket to non-blocking");
+    }
+  }
+#else
+  const char *filename = USBMUXD_FILE_PATH;
   struct stat fst;
   if (stat(filename, &fst) ||
       !S_ISSOCK(fst.st_mode) ||
@@ -65,7 +111,9 @@ int dl_connect(int recv_timeout) {
     if (!opts || fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
       perror("Could not set socket to non-blocking");
     }
-  } else {
+  }
+#endif
+  else {
     long millis = (recv_timeout > 0 ? recv_timeout : 5000);
     struct timeval tv;
     tv.tv_sec = (time_t) (millis / 1000);
@@ -116,7 +164,7 @@ dl_status dl_start(dl_t self) {
   tail = dl_sprintf_uint32(tail, 1); // version: 1
   tail = dl_sprintf_uint32(tail, TYPE_PLIST); // type: plist
   tail = dl_sprintf_uint32(tail, 1); // tag: 1
-  tail = stpncpy(tail, xml, xml_length);
+  strncpy(tail, xml, xml_length);
   free(xml);
 
   dl_status ret = self->send_packet(self, packet, length);

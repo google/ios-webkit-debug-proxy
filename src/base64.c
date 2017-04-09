@@ -29,6 +29,10 @@
 
 #if defined(POLARSSL_BASE64_C)
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 //#include "polarssl/base64.h"
 #include "base64.h"
 #include "stdio.h"

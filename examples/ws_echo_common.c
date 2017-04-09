@@ -5,6 +5,10 @@
 // A minimal websocket "echo" server
 //
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <stdbool.h>
 #include <stdio.h>

@@ -1,13 +1,12 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
-//
-//
-//
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #define _GNU_SOURCE
 #include <errno.h>
-//#include <magic.h> //apt-get install libmagic-dev
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -25,6 +24,7 @@
 #include "rpc.h"
 #include "webinspector.h"
 #include "websocket.h"
+#include "strndup.h"
 
 
 struct iwdp_idl_struct;
@@ -1630,12 +1630,14 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
   char *ret = (char *)calloc(length+1, sizeof(char));
   if (ret) {
     char *tail = ret;
-    tail = stpcpy(tail, header);
+    strcpy(tail, header);
+    tail += strlen(header);
     for (item = items; *item; item++) {
-      tail = stpcpy(tail, *item);
+      strcpy(tail, *item);
+      tail += strlen(*item);
       free(*item);
     }
-    tail = stpcpy(tail, footer);
+    strcpy(tail, footer);
   }
   free(items);
   return ret;
@@ -1891,12 +1893,14 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
   char *ret = (char *)calloc(length+1, sizeof(char));
   if (ret) {
     char *tail = ret;
-    tail = stpcpy(tail, header);
+    strcpy(tail, header);
+    tail += strlen(header);
     for (item = items; *item; item++) {
-      tail = stpcpy(tail, *item);
+      strcpy(tail, *item);
+      tail += strlen(*item);
       free(*item);
     }
-    tail = stpcpy(tail, footer);
+    strcpy(tail, footer);
   }
   if (!want_json) {
     free(header);

@@ -12,12 +12,22 @@
 #define _GNU_SOURCE
 #include <getopt.h>
 #include <errno.h>
-#include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef HAVE_REGEX_H
+#include <pcre.h>
+#include <pcreposix.h>
+#else
+#include <regex.h>
+#endif
+
+#ifdef WIN32
+#include <winsock2.h>
+#endif
 
 #include "device_listener.h"
 #include "hash_table.h"
@@ -55,6 +65,15 @@ int main(int argc, char** argv) {
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
 
+#ifdef WIN32
+  WSADATA wsa_data;
+  int res = WSAStartup(MAKEWORD(2,2), &wsa_data);
+  if (res) {
+    fprintf(stderr, "WSAStartup failed with error: %d\n", res);
+    exit(1);
+  }
+#endif
+
   iwdpm_t self = iwdpm_new();
   int ret = iwdpm_configure(self, argc, argv);
   if (ret) {
@@ -78,6 +97,9 @@ int main(int argc, char** argv) {
   }
   sm->cleanup(sm);
   iwdpm_free(self);
+#ifdef WIN32
+  WSACleanup();
+#endif
   return ret;
 }
 //

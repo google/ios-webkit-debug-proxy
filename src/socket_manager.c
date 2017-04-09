@@ -1,6 +1,10 @@
 // Google BSD license https://developers.google.com/google-bsd-license
 // Copyright 2012 Google Inc. wrightt@google.com
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <stdarg.h>
@@ -9,19 +13,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
+#ifdef WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-#include <unistd.h>
+#endif
 
 #include "char_buffer.h"
 #include "socket_manager.h"
 #include "hash_table.h"
 
-#ifdef __MACH__
+#if defined(__MACH__) || defined(WIN32)
 #define SIZEOF_FD_SET sizeof(struct fd_set)
 #define RECV_FLAGS 0
 #else
@@ -69,7 +78,30 @@ void sm_sendq_free(sm_sendq_t sendq);
 
 
 int sm_listen(int port) {
-  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#ifdef WIN32
+  if (fd == INVALID_SOCKET) {
+    fprintf(stderr, "socket_manager: socket function failed with\
+        error %d\n", WSAGetLastError());
+    return -1;
+  }
+  struct sockaddr_in local;
+  local.sin_family = AF_INET;
+  local.sin_addr.s_addr = INADDR_ANY;
+  local.sin_port = htons(port);
+  int ra = 1;
+  u_long nb = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&ra,
+        sizeof(ra)) == SOCKET_ERROR ||
+      ioctlsocket(fd, FIONBIO, &nb) ||
+      bind(fd, (SOCKADDR *)&local, sizeof(local)) == SOCKET_ERROR ||
+      listen(fd, 5)) {
+    fprintf(stderr, "socket_manager: bind failed with\
+        error %d\n", WSAGetLastError());
+    closesocket(fd);
+    return -1;
+  }
+#else
   if (fd < 0) {
     return -1;
   }
@@ -88,6 +120,7 @@ int sm_listen(int port) {
     close(fd);
     return -1;
   }
+#endif
   return fd;
 }
 
@@ -96,6 +129,7 @@ int sm_connect(const char *hostname, int port) {
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
   struct addrinfo *res0;
   char *port_str = NULL;
   if (asprintf(&port_str, "%d", port) < 0) {
@@ -111,6 +145,33 @@ int sm_connect(const char *hostname, int port) {
   int fd = 0;
   struct addrinfo *res;
   for (res = res0; res; res = res->ai_next) {
+#ifdef WIN32
+    if (fd != INVALID_SOCKET) {
+      closesocket(fd);
+    }
+    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd == INVALID_SOCKET) {
+      continue;
+    }
+    u_long nb = 1;
+    if (ioctlsocket(fd, FIONBIO, &nb) ||
+        (connect(fd, res->ai_addr, res->ai_addrlen) == SOCKET_ERROR &&
+         WSAGetLastError() != WSAEWOULDBLOCK &&
+         WSAGetLastError() != WSAEINPROGRESS)) {
+      continue;
+    }
+
+    struct timeval to;
+    to.tv_sec = 0;
+    to.tv_usec= 500*1000;
+    fd_set write_fds;
+    FD_ZERO(&write_fds);
+    FD_SET(fd, &write_fds);
+
+    if (select(1, NULL, &write_fds, NULL, &to) < 1) {
+      continue;
+    }
+#else
     if (fd > 0) {
       close(fd);
     }
@@ -144,12 +205,19 @@ int sm_connect(const char *hostname, int port) {
     if (fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
       continue;
     }
+#endif
     ret = fd;
     break;
   }
+#ifdef WIN32
+  if (fd != INVALID_SOCKET && ret <= 0) {
+    closesocket(fd);
+  }
+#else
   if (fd > 0 && ret <= 0) {
     close(fd);
   }
+#endif
   freeaddrinfo(res0);
   return ret;
 }
@@ -201,7 +269,11 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   bool is_server = FD_ISSET(fd, my->server_fds);
   sm_on_debug(self, "ss.remove%s_fd(%d)", (is_server ? "_server" : ""), fd);
   sm_status ret = self->on_close(self, fd, value, is_server);
+#ifdef WIN32
+  closesocket(fd);
+#else
   close(fd);
+#endif
   FD_CLR(fd, my->all_fds);
   if (is_server) {
     FD_CLR(fd, my->server_fds);
@@ -245,7 +317,11 @@ sm_status sm_send(sm_t self, int fd, const char *data, size_t length,
     while (1) {
       ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
       if (sent_bytes <= 0) {
+#ifdef WIN32
+        if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
+#else
         if (sent_bytes && errno != EWOULDBLOCK) {
+#endif
           sm_on_debug(self, "ss.failed fd=%d", fd);
           perror("send failed");
           return SM_ERROR;
@@ -290,7 +366,11 @@ void sm_accept(sm_t self, int fd) {
   while (1) {
     int new_fd = accept(fd, NULL, NULL);
     if (new_fd < 0) {
+#ifdef WIN32
+      if (WSAGetLastError() != WSAEWOULDBLOCK) {
+#else
       if (errno != EWOULDBLOCK) {
+#endif
         perror("accept failed");
         self->remove_fd(self, fd);
         return;
@@ -302,10 +382,18 @@ void sm_accept(sm_t self, int fd) {
     void *value = ht_get_value(my->fd_to_value, HT_KEY(fd));
     void *new_value = NULL;
     if (self->on_accept(self, fd, value, new_fd, &new_value)) {
-      close(new_fd);
+#ifdef WIN32
+     closesocket(new_fd);
+#else
+     close(new_fd);
+#endif
     } else if (self->add_fd(self, new_fd, new_value, false)) {
       self->on_close(self, new_fd, new_value, false);
-      close(new_fd);
+#ifdef WIN32
+     closesocket(new_fd);
+#else
+     close(new_fd);
+#endif
     }
   }
 }
@@ -322,8 +410,14 @@ void sm_resend(sm_t self, int fd) {
     while (head < tail) {
       ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
       if (sent_bytes <= 0) {
+#ifdef WIN32
+        if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
+          fprintf(stderr, "sendq retry failed with error: %d\n",
+              WSAGetLastError());
+#else
         if (sent_bytes && errno != EWOULDBLOCK) {
           perror("sendq retry failed");
+#endif
           self->remove_fd(self, fd);
           return;
         }
@@ -377,8 +471,13 @@ void sm_recv(sm_t self, int fd) {
   while (1) {
     ssize_t read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
     if (read_bytes < 0) {
+#ifdef WIN32
+      if (WSAGetLastError() != WSAEWOULDBLOCK) {
+        fprintf(stderr, "recv failed with error %d\n", WSAGetLastError());
+#else
       if (errno != EWOULDBLOCK) {
         perror("recv failed");
+#endif
         self->remove_fd(self, fd);
       }
       break;
@@ -415,11 +514,20 @@ int sm_select(sm_t self, int timeout_secs) {
     return 0; // timeout, select again
   }
   if (num_ready < 0) {
+#ifdef WIN32
+    int socket_err = WSAGetLastError();
+    if (socket_err != WSAEINTR && socket_err != WSAEWOULDBLOCK) {
+      fprintf(stderr, "socket_manager: select failed with\
+          error %d\n", WSAGetLastError());
+      return -socket_err;
+    }
+#else
     if (errno != EINTR && errno != EAGAIN) {
       // might want to sleep here?
       perror("select failed");
       return -errno;
     }
+#endif
     return 0;
   }
 
@@ -566,4 +674,3 @@ void sm_free(sm_t self) {
     free(self);
   }
 }
-
