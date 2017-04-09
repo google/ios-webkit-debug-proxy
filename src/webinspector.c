@@ -14,10 +14,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#ifdef WIN32
+#include <winsock2.h>
+#else
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#endif
 
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
@@ -146,11 +150,18 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   if (recv_timeout < 0) {
+#ifdef WIN32
+    u_long nb = 1;
+    if (ioctlsocket(fd, FIONBIO, &nb)) {
+      fprintf(stderr, "webinspector: could not set socket to non-blocking");
+    }
+#else
     int opts = fcntl(fd, F_GETFL);
     if (!opts || fcntl(fd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
       perror("Could not set socket to non-blocking");
       goto leave_cleanup;
     }
+#endif
   } else {
     long millis = (recv_timeout > 0 ? recv_timeout : 5000);
     struct timeval tv;
@@ -167,9 +178,15 @@ int wi_connect(const char *device_id, char **to_device_id,
   ret = fd;
 
 leave_cleanup:
+#ifdef WIN32
+  if (ret < 0 && fd != INVALID_SOCKET) {
+    closesocket(fd);
+  }
+#else
   if (ret < 0 && fd > 0) {
     close(fd);
   }
+#endif
   // don't call usbmuxd_disconnect(fd)!
   //idevice_disconnect(connection);
   free(connection);
