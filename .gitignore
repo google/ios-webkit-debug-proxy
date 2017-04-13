@@ -9,6 +9,7 @@ examples/dl_client
 examples/wi_client
 examples/ws_echo1
 examples/ws_echo2
+*.exe
 
 # OS generated files
 .DS_Store

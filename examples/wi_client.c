@@ -15,8 +15,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
 
 #include "ios-webkit-debug-proxy/webinspector.h"
 
@@ -62,6 +67,15 @@ int main(int argc, char **argv) {
   // map ctrl-c to quit_flag=1
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
+
+#ifdef WIN32
+  WSADATA wsa_data;
+  int res = WSAStartup(MAKEWORD(2,2), &wsa_data);
+  if (res) {
+    fprintf(stderr, "WSAStartup failed with error: %d\n", res);
+    exit(1);
+  }
+#endif
 
   // parse args
   char *device_id = NULL;
@@ -139,7 +153,14 @@ int main(int argc, char **argv) {
   memset(my_wi, 0, sizeof(struct my_wi_struct));
   free(my_wi);
   if (fd >= 0) {
+#ifdef WIN32
+    closesocket(fd);
+#else
     close(fd);
+#endif
   }
+#ifdef WIN32
+  WSACleanup();
+#endif
   return 0;
 }

@@ -15,10 +15,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
+#ifdef WIN32
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <errno.h>
+#endif
 
 #include "ios-webkit-debug-proxy/socket_manager.h"
 #include "ws_echo_common.h"
@@ -59,6 +63,15 @@ int main(int argc, char** argv) {
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
 
+#ifdef WIN32
+  WSADATA wsa_data;
+  int res = WSAStartup(MAKEWORD(2,2), &wsa_data);
+  if (res) {
+    fprintf(stderr, "WSAStartup failed with error: %d\n", res);
+    exit(1);
+  }
+#endif
+
   int port = 8080;
 
   int s_fd = sm_listen(port);
@@ -87,6 +100,9 @@ int main(int argc, char** argv) {
   sm->cleanup(sm);
   free(my_sm);
   sm_free(sm);
+#ifdef WIN32
+  WSACleanup();
+#endif
   return ret;
 }
 

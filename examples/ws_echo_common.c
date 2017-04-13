@@ -14,7 +14,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
+#endif
 
 #include "ws_echo_common.h"
 
