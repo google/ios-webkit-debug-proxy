@@ -14,6 +14,7 @@ brew install ios-webkit-debug-proxy
 
 On Windows, it's easiest to install with [scoop](http://scoop.sh/):
 ```
+scoop bucket add extras
 scoop install ios-webkit-debug-proxy
 ```
 
