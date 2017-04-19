@@ -4,9 +4,9 @@ The ios_webkit_debug_proxy (aka _iwdp_) proxies requests from usbmuxd daemon ove
 
 ## Installation
 
-Linux, OS X & Windows are currently supported. Windows support was previously handled in the [ios-webkit-debug-proxy-win32](https://github.com/artygus/ios-webkit-debug-proxy-win32) project, but is now merged into this.
+iOS WebKit Debug Proxy works on Linux, MacOS & Windows. 
 
-On a Mac, it's easiest to install with [homebrew](http://brew.sh/):
+On a MacOS, it's easiest to install with [homebrew](http://brew.sh/):
 
 ```console
 brew install ios-webkit-debug-proxy
@@ -18,7 +18,7 @@ scoop bucket add extras
 scoop install ios-webkit-debug-proxy
 ```
 
-On Linux (or Mac):
+On Linux (or MacOS):
 
 ```console
 sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev
