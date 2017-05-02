@@ -51,7 +51,6 @@ $SIM_APP -SimulateApplication $SDK_DIR/iPhoneSimulator8.4.sdk/Applications/Mobil
 Your attached iOS devices must have ≥1 open browser tabs and the inspector enabled via:
   `Settings > Safari > Advanced > Web Inspector = ON`
 
-
 ### Start the proxy
 
 ```console
@@ -63,13 +62,29 @@ ios_webkit_debug_proxy
 * `--help` for more options.
 * `Ctrl-C` to quit. Also, the proxy can be left running as a background process.
 
+### Using with DevTools
+
+ios_webkit_debug_proxy can be used with many tools such as Chrome DevTools and Safari Web Inspector.
+
+#### Chrome Devtools
+
+To use Chrome DevTools it's the recommendation to use the [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project, which has instructions on how to setup Chrome to remote debug iOS devices, much similar to Android debugging.
+
+The reason is that recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), which means that newer versions of Chrome DevTools arne't compatible with Safari. 
+
+#### Safari Web Inspector
+You can use Safari Web Inspector extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
+
+#### Firefox DevTools via Valence
+Another option is [mozilla/valence](https://github.com/mozilla/valence) which enables Firefox DevTools to be used with iOS.
+
+## Configuration
+
 ### View and inspect debuggable tabs
 
 Navigate to [localhost:9221](http://localhost:9221). You'll see a listing of all connected devices.
 
 Click through to view tabs available on each, and click through again to open the DevTools for a tab.
-
-## Configuration
 
 ### Setting the DevTools UI URL
 
@@ -96,9 +111,6 @@ Just the same, you can apply the appropriate port (9222) and page (2) values bel
 The `-f` value must end in ".html". Due to security reasons, `https` URLs will not work; use `http` or force-allow with the URL bar's shield icon. As of Chrome 45, the primary URL [changed](https://codereview.chromium.org/1144393004/) from `devtools.html` to `inspector.html`.
 
 To disable the frontend proxy, use the `--no-frontend` argument.
-
-#### Devtools note
-In recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), this is why latest Chrome tools are not very functional with this utility. Maintaining compatibility of devtools is out of scope of the current project, in this regard you could find [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project useful. Another option is [mozilla/valence](https://github.com/mozilla/valence) remote debugging protocol adapter or Webkit devtools extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
 
 #### Port assigment
 
