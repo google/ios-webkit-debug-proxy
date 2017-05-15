@@ -79,8 +79,8 @@ char *create_root_response(int port, int count) {
 
 ws_status on_http_request(ws_t ws,
     const char *method, const char *resource, const char *version,
-    const char *headers, size_t headers_length, bool is_websocket,
-    bool *to_keep_alive) {
+    const char *host, const char *headers, size_t headers_length,
+    bool is_websocket, bool *to_keep_alive) {
   if (strcmp(method, "GET") || strcmp(resource, "/")) {
     return WS_ERROR;
   }

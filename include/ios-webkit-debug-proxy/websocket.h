@@ -76,7 +76,7 @@ struct ws_struct {
 
   ws_status (*on_http_request)(ws_t self,
           const char *method, const char *resource, const char *version,
-          const char *headers, size_t headers_length,
+          const char *host, const char *headers, size_t headers_length,
           bool is_websocket, bool *to_keep_alive);
 
   ws_status (*on_upgrade)(ws_t self,

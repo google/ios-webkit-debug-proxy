@@ -33,8 +33,8 @@ ws_status send_data(ws_t ws, const char *data, size_t length);
 
 ws_status on_http_request(ws_t ws,
         const char *method, const char *resource, const char *version,
-        const char *headers, size_t headers_length, bool is_websocket,
-        bool *to_keep_alive);
+        const char *host, const char *headers, size_t headers_length,
+        bool is_websocket, bool *to_keep_alive);
 
 ws_status on_upgrade(ws_t ws,
         const char *resource, const char *protocol,

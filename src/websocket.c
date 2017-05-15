@@ -42,6 +42,7 @@ struct ws_private {
   char *method;
   char *resource;
   char *http_version;
+  char *req_host;
 
   char *protocol;
   int version;
@@ -465,6 +466,13 @@ ws_status ws_read_headers(ws_t self) {
     } else if (!strcasecmp(key, "Sec-WebSocket-Key")) {
       free(my->sec_key);
       my->sec_key = strdup(val);
+    } else if (!strcasecmp(key, "Host")) {
+      free(my->req_host);
+      char *p = strrchr(val, ':');
+      if (p) {
+        *p = 0;
+      }
+      my->req_host = strdup(val);
     }
     free(key);
     free(val);
@@ -670,7 +678,7 @@ ws_state ws_recv_headers(ws_t self) {
 
   bool keep_alive = false;
   if (self->on_http_request(self, my->method, my->resource,
-        my->http_version, in_head, my->in->head - in_head,
+        my->http_version, my->req_host, in_head, my->in->head - in_head,
         my->is_websocket, &keep_alive)) {
     return STATE_ERROR;
   }
@@ -827,6 +835,7 @@ void ws_private_free(ws_private_t my) {
     free(my->protocol);
     free(my->sec_key);
     free(my->sec_answer);
+    free(my->req_host);
     memset(my, 0, sizeof(struct ws_private));
     free(my);
   }

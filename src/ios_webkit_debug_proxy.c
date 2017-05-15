@@ -687,7 +687,8 @@ ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
   return ret;
 }
 
-ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
+ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json,
+    const char *host) {
   iwdp_iws_t iws = (iwdp_iws_t)ws->state;
   iwdp_iport_t iport = iws->iport;
   iwdp_t self = iport->self;
@@ -716,13 +717,14 @@ ws_status iwdp_on_list_request(ws_t ws, bool is_head, bool want_json) {
     }
     ht_t ipage_ht = (iport->iwi ? iport->iwi->page_num_to_ipage : NULL);
     iwdp_ipage_t *ipages = (iwdp_ipage_t *)ht_values(ipage_ht);
+
     content = iwdp_ipages_to_text(ipages, want_json,
-        iport->device_id, iport->device_name, frontend_url, NULL, iport->port);
+        iport->device_id, iport->device_name, frontend_url, host, iport->port);
     free(ipages);
     free(frontend_url);
   } else {
     iwdp_iport_t *iports = (iwdp_iport_t *)ht_values(my->device_id_to_iport);
-    content = iwdp_iports_to_text(iports, want_json, NULL);
+    content = iwdp_iports_to_text(iports, want_json, host);
     free(iports);
   }
   ws_status ret = iwdp_send_http(ws, is_head, "200 OK",
@@ -1035,8 +1037,8 @@ ws_status iwdp_on_static_request(ws_t ws, bool is_head, const char *resource,
 
 ws_status iwdp_on_http_request(ws_t ws,
     const char *method, const char *resource, const char *version,
-    const char *headers, size_t headers_length, bool is_websocket,
-    bool *to_keep_alive) {
+    const char *host, const char *headers, size_t headers_length,
+    bool is_websocket, bool *to_keep_alive) {
   bool is_get = !strcmp(method, "GET");
   bool is_head = !is_get && !strcmp(method, "HEAD");
   if (is_websocket) {
@@ -1047,10 +1049,11 @@ ws_status iwdp_on_http_request(ws_t ws,
     if (!is_get && !is_head) {
       return iwdp_on_not_found(ws, is_head, resource, "Method Not Allowed");
     }
+
     if (!strlen(resource) || !strcmp(resource, "/")) {
-      return iwdp_on_list_request(ws, is_head, false);
+      return iwdp_on_list_request(ws, is_head, false, host);
     } else if (!strcmp(resource, "/json") || !strcmp(resource, "/json/list")) {
-      return iwdp_on_list_request(ws, is_head, true);
+      return iwdp_on_list_request(ws, is_head, true, host);
     } else if (!strncmp(resource, "/devtools/", 10)) {
       return iwdp_on_static_request(ws, is_head, resource,
           to_keep_alive);
