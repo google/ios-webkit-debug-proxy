@@ -82,7 +82,7 @@ Another option is [mozilla/valence](https://github.com/mozilla/valence) which en
 
 ### View and inspect debuggable tabs
 
-Navigate to [localhost:9221](http://localhost:9221). You'll see a listing of all connected devices.
+Navigate to [localhost:9222](http://localhost:9222). You'll see a listing of all connected devices.
 
 Click through to view tabs available on each, and click through again to open the DevTools for a tab.
 
