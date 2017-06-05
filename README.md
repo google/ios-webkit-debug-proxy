@@ -4,7 +4,7 @@ The ios_webkit_debug_proxy (aka _iwdp_) proxies requests from usbmuxd daemon ove
 
 ## Installation
 
-iOS WebKit Debug Proxy works on Linux, MacOS & Windows. 
+iOS WebKit Debug Proxy works on Linux, MacOS & Windows.
 
 On a MacOS, it's easiest to install with [homebrew](http://brew.sh/):
 
@@ -70,7 +70,7 @@ ios_webkit_debug_proxy can be used with many tools such as Chrome DevTools and S
 
 To use Chrome DevTools it's the recommendation to use the [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project, which has instructions on how to setup Chrome to remote debug iOS devices, much similar to Android debugging.
 
-The reason is that recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), which means that newer versions of Chrome DevTools arne't compatible with Safari. 
+The reason is that recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), which means that newer versions of Chrome DevTools aren't compatible with Safari.
 
 #### Safari Web Inspector
 You can use Safari Web Inspector extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
@@ -192,11 +192,11 @@ Lastly, always try replugging in the USB cable.
 
 ## IWDP Clients
 
-JSON-formatted APIs are provided for programmatic clients. 
+JSON-formatted APIs are provided for programmatic clients.
   * <http://localhost:9221/json> will list all devices
   * <http://localhost:9222/json> to list device ":9222"'s tabs
-  * [ws://localhost:9222/devtools/page/1]() to inspect a tab.  
- 
+  * [ws://localhost:9222/devtools/page/1]() to inspect a tab.
+
 See the [examples/README](examples/README.md) for example clients: NodeJS, C, clientside JS, websocket and more.
 
 ## Design
