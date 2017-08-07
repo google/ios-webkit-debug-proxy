@@ -40,7 +40,7 @@
 #define MAX_BODY_LENGTH 1<<24
 
 struct wi_private {
-  bool is_sim;
+  bool partials_supported;
   cb_t in;
   cb_t partial;
   bool has_length;
@@ -89,7 +89,7 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
 #endif
 
 int wi_connect(const char *device_id, char **to_device_id,
-    char **to_device_name, int recv_timeout) {
+    char **to_device_name, int *to_device_version, int recv_timeout) {
   int ret = -1;
 
   idevice_t phone = NULL;
@@ -122,6 +122,24 @@ int wi_connect(const char *device_id, char **to_device_id,
   if (to_device_name &&
       !lockdownd_get_value(client, NULL, "DeviceName", &node)) {
     plist_get_string_val(node, to_device_name);
+    plist_free(node);
+    node = NULL;
+  }
+  if (to_device_version &&
+      !lockdownd_get_value(client, NULL, "ProductVersion", &node)) {
+    int vers[3] = {0, 0, 0};
+    char *s_version = NULL;
+    plist_get_string_val(node, &s_version);
+    if (s_version && sscanf(s_version, "%d.%d.%d",
+          &vers[0], &vers[1], &vers[2]) >= 2) {
+      *to_device_version = ((vers[0] & 0xFF) << 16) |
+                           ((vers[1] & 0xFF) << 8)  |
+                            (vers[2] & 0xFF);
+    } else {
+      *to_device_version = 0;
+    }
+    free(s_version);
+    plist_free(node);
   }
 
   // start webinspector, get port
@@ -191,7 +209,6 @@ leave_cleanup:
   //idevice_disconnect(connection);
   free(connection);
   lockdownd_client_free(client);
-  plist_free(node);
   idevice_free(phone);
   return ret;
 }
@@ -238,7 +255,7 @@ wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
     bool is_partial = false;
     char *data = NULL;
     uint32_t data_len = 0;
-    if (my->is_sim) {
+    if (!my->partials_supported) {
       data = rpc_bin;
       data_len = rpc_len;
       rpc_bin = NULL;
@@ -261,7 +278,7 @@ wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
     size_t length = data_len + 4;
     char *out_head = (char*)malloc(length * sizeof(char));
     if (!out_head) {
-      if (!my->is_sim) {
+      if (my->partials_supported) {
         free(data);
       }
       break;
@@ -325,7 +342,7 @@ wi_status wi_parse_plist(wi_t self, const char *from_buf, size_t length,
   *to_is_partial = false;
   *to_rpc_dict = NULL;
 
-  if (my->is_sim) {
+  if (!my->partials_supported) {
     plist_from_bin(from_buf, length, to_rpc_dict);
   } else {
     plist_t wi_dict = NULL;
@@ -395,7 +412,7 @@ wi_status wi_recv_packet(wi_t self, const char *packet, ssize_t length) {
     } else {
       cb_asprint(&text, packet, length, 80, 50);
     }
-    wi_status ret = self->on_error(self, "Invalid packet %s\n", text);
+    wi_status ret = self->on_error(self, "Invalid packet:\n%s\n", text);
     free(text);
     return ret;
   }
@@ -498,7 +515,7 @@ void wi_free(wi_t self) {
     free(self);
   }
 }
-wi_t wi_new(bool is_sim) {
+wi_t wi_new(bool partials_supported) {
   wi_t self = (wi_t)malloc(sizeof(struct wi_struct));
   if (!self) {
     return NULL;
@@ -513,6 +530,6 @@ wi_t wi_new(bool is_sim) {
     wi_free(self);
     return NULL;
   }
-  self->private_state->is_sim = is_sim;
+  self->private_state->partials_supported = partials_supported;
   return self;
 }
