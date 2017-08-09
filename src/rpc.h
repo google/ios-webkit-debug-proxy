@@ -27,7 +27,6 @@ rpc_status rpc_new_uuid(char **to_uuid);
 struct rpc_app_struct {
   char *app_id;
   char *app_name;
-  char *host_id;
   bool is_proxy;
 };
 typedef struct rpc_app_struct *rpc_app_t;

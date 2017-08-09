@@ -33,11 +33,11 @@ typedef uint8_t wi_status;
 //    positive for milliseconds.
 // @result fd, or -1 for error
 int wi_connect(const char *device_id, char **to_device_id,
-               char **to_device_name, int recv_timeout);
+               char **to_device_name, int *to_device_version, int recv_timeout);
 
 struct wi_struct;
 typedef struct wi_struct *wi_t;
-wi_t wi_new(bool is_sim);
+wi_t wi_new(bool partials_supported);
 void wi_free(wi_t self);
 
 struct wi_private;

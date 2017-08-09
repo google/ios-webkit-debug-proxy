@@ -181,6 +181,16 @@ Please upgrade libimobiledevice to version from master and rebuild ios-webkit-de
     brew reinstall --HEAD libimobiledevice
     brew reinstall -s ios-webkit-debug-proxy
 
+##### iOS 11
+> Could not connect to lockdown. Exiting.: Resource temporarily unavailable  
+
+You would need to rebuild libimobiledevice with proposed [patch](https://gist.github.com/nikias/b351bf633d62703e0ff4f2fee9628401), for details follow the https://github.com/libimobiledevice/libimobiledevice/issues/510
+
+> Unable to connect to XXX  
+> Please verify that Settings > Safari > Advanced > Web Inspector = ON
+
+Build from master `brew reinstall --HEAD ios-webkit-debug-proxy`
+
 ##### Can not see Simulator
 
   - Make sure you started simulator before the proxy
@@ -189,6 +199,7 @@ Please upgrade libimobiledevice to version from master and rebuild ios-webkit-de
 
 ##### If no luck so far...
 Lastly, always try replugging in the USB cable.
+
 
 ## IWDP Clients
 
@@ -213,5 +224,5 @@ Copyright 2012 Google Inc.  <wrightt@google.com>
 The proxy uses the following open-source packages:
    - [libplist 1.10](http://cgit.sukimashita.com/libplist.git)
    - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
-   - [libimobiledevice 1.1.5](http://cgit.sukimashita.com/libimobiledevice.git)
-   - libimobiledevice 1.2.1 _if your taget iOS10+_
+   - [libimobiledevice 1.2.0](http://cgit.sukimashita.com/libimobiledevice.git)
+   - libimobiledevice 1.2.1 _if your target iOS10+_
