@@ -1292,6 +1292,13 @@ rpc_status iwdp_on_applicationDisconnected(rpc_t rpc, const rpc_app_t app) {
 rpc_status iwdp_on_reportConnectedApplicationList(rpc_t rpc, const rpc_app_t *apps) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)rpc->state;
   ht_t app_id_ht = iwi->app_id_to_true;
+
+  // rpc_reportSetup never comes from iOS >= 11.3
+  if (!iwi->connected) {
+    iwi->connected = true;
+    iwdp_log_connect(iwi->iport);
+  }
+
   if (*apps == NULL) {
     return RPC_SUCCESS;
   }
