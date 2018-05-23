@@ -1832,6 +1832,8 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           ipage->title ? ipage->title : "");
       char* escaped_app_id = iwdp_escape_json_string_val(
           ipage->app_id ? ipage->app_id : "");
+      char* escaped_page_url = iwdp_escape_json_string_val(
+          ipage->url ? ipage->url : "");
 
       int res = asprintf(&s,
           "%s{\n"
@@ -1844,11 +1846,12 @@ char *iwdp_ipages_to_text(iwdp_ipage_t *ipages, bool want_json,
           "   \"appId\": \"%s\"\n"
           "}",
           (sum_len ? "," : ""), (href && !ipage->iws ? href : ""),
-          (ipage->url ? ipage->url : ""), escaped_title, (ipage->url ? ipage->url : ""),
+          escaped_page_url, escaped_title, escaped_page_url,
           (host ? host : "localhost"), port, ipage->page_num, escaped_app_id);
 
       free(escaped_title);
       free(escaped_app_id);
+      free(escaped_page_url);
 
       if (res < 0) {
         free(href);
