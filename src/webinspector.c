@@ -106,9 +106,10 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // connect to lockdownd
-  if (lockdownd_client_new_with_handshake(
-        phone, &client, "ios_webkit_debug_proxy")) {
-    perror("Could not connect to lockdownd. Exiting.");
+  lockdownd_error_t ldret;
+  if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(
+        phone, &client, "ios_webkit_debug_proxy"))) {
+    fprintf(stderr, "Could not connect to lockdownd, error code %d. Exiting.\n", ldret);
     goto leave_cleanup;
   }
 
