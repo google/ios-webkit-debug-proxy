@@ -260,7 +260,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
       case 'u':
         {
           regex_t *re = malloc(sizeof(regex_t));
-          regcomp(re, "^[a-fA-F0-9]{40}(:[0-9]+(-[0-9]+)?)?$", REG_EXTENDED);
+          regcomp(re, "^[a-fA-F0-9-]{25,}(:[0-9]+(-[0-9]+)?)?$", REG_EXTENDED);
           size_t ngroups = re->re_nsub + 1;
           regmatch_t *groups = calloc(ngroups, sizeof(regmatch_t));
           bool is_match = !regexec(re, optarg, ngroups, groups, 0);

@@ -94,7 +94,7 @@ int pc_parse(pc_t self, const char *line, size_t len,
     self->re = malloc(sizeof(regex_t));
     if (regcomp(self->re,
           "^[ \t]*"
-          "(([a-f0-9]{40}|\\*|null)[ \t]*:?|:)"
+          "(([a-fA-F0-9-]{25,}|\\*|null)[ \t]*:?|:)"
           "[ \t]*(-?[0-9]+)"
           "([ \t]*-[ \t]*([0-9]+))?"
           "[ \t]*$", REG_EXTENDED | REG_ICASE)) {
