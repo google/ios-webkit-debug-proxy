@@ -175,21 +175,16 @@ Check the device for [a prompt to trust the connected computer](http://i.stack.i
 
 > Could not connect to lockdownd. Exiting.: Broken pipe. Unable to attach <long id> inspector
 
+or
+
+> Could not connect to lockdownd, error code -\<number\>. Exiting.
+
 Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
 
     brew update
+    brew reinstall --HEAD usbmuxd
     brew reinstall --HEAD libimobiledevice
     brew reinstall -s ios-webkit-debug-proxy
-
-##### iOS 11
-> Could not connect to lockdown. Exiting.: Resource temporarily unavailable  
-
-You would need to rebuild libimobiledevice with proposed [patch](https://gist.github.com/nikias/b351bf633d62703e0ff4f2fee9628401), for details follow the https://github.com/libimobiledevice/libimobiledevice/issues/510
-
-> Unable to connect to XXX  
-> Please verify that Settings > Safari > Advanced > Web Inspector = ON
-
-Build from master `brew reinstall --HEAD ios-webkit-debug-proxy`
 
 ##### Can not see Simulator
 
