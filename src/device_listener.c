@@ -240,6 +240,17 @@ dl_status dl_recv_packet(dl_t self, const char *packet, size_t length) {
       node = plist_dict_get_item(props, "SerialNumber");
       if (node) {
         plist_get_string_val(node, &device_id);
+
+        if (device_id && strlen(device_id) == 24) {
+          char new_device_id[26];
+
+          memcpy(new_device_id, device_id, 8);
+          memcpy(new_device_id + 9, device_id + 8, 17);
+          new_device_id[8] = '-';
+
+          free(device_id);
+          device_id = new_device_id;
+        }
       }
 
       uint64_t location = 0;
