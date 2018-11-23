@@ -242,7 +242,7 @@ dl_status dl_recv_packet(dl_t self, const char *packet, size_t length) {
         plist_get_string_val(node, &device_id);
 
         if (device_id && strlen(device_id) == 24) {
-          char new_device_id[26];
+          char *new_device_id = malloc(sizeof(char) * 26);
 
           memcpy(new_device_id, device_id, 8);
           memcpy(new_device_id + 9, device_id + 8, 17);
