@@ -94,7 +94,7 @@ int sm_listen(int port) {
   }
   struct sockaddr_in local;
   local.sin_family = AF_INET;
-  local.sin_addr.s_addr = INADDR_ANY;
+  local.sin_addr.s_addr = htonl(INADDR_ANY);
   local.sin_port = htons(port);
   int ra = 1;
   u_long nb = 1;
