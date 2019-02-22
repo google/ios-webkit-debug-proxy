@@ -231,6 +231,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
     {"debug", 0, NULL, 'd'},
     {"help", 0, NULL, 'h'},
     {"version", 0, NULL, 'V'},
+    {"no-buffer", 0, NULL, 'B'},
     {NULL, 0, NULL, 0}
   };
   const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
@@ -291,6 +292,10 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
         break;
       case 'd':
         self->is_debug = true;
+        break;
+      case 'B':
+        setbuf(stdout, NULL);
+        setbuf(stderr, NULL);
         break;
       default:
         ret = 2;
