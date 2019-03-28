@@ -41,7 +41,7 @@ To verify that usbmuxd can list your attached device(s), ensure that `libimobile
 sudo apt-get install libimobiledevice-utils
 ```
 
-and then run run `idevice_id -l`
+and then run `idevice_id -l`
 
 ### Start the simulator or device
 
