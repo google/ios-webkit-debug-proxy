@@ -33,7 +33,15 @@ sudo make install
 
 ## Usage
 
-On Linux, you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.  To verify that usbmuxd can list your attached device(s), run `idevice_id -l`
+On Linux, you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.
+
+To verify that usbmuxd can list your attached device(s), ensure that `libimobiledevice-utils` is installed, or install it with:
+
+```console
+sudo apt-get install libimobiledevice-utils
+```
+
+and then run run `idevice_id -l`
 
 ### Start the simulator or device
 
