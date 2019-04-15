@@ -2,6 +2,10 @@
 
 The ios_webkit_debug_proxy (aka _iwdp_) proxies requests from usbmuxd daemon over a websocket connection, allowing developers to send commands to MobileSafari and UIWebViews on real and simulated iOS devices.
 
+## How to build iOS Debug Proxy from source
+
+If you wish to know how to build this repository, follow [these instructions](BUILD.md).
+
 ## Installation
 
 iOS WebKit Debug Proxy works on Linux, MacOS & Windows.
