@@ -27,7 +27,7 @@
     * `wget https://github.com/libimobiledevice/libplist/archive/2.0.0.zip -O libplist.zip`
     * `wget https://github.com/libimobiledevice/libusbmuxd/archive/9db5747cd823b1f59794f81560a4af22a031f5c9.zip -O libusbmuxd.zip`
     * `wget https://github.com/libimobiledevice/libimobiledevice/archive/92c5462adef87b1e577b8557b6b9c64d5a089544.zip -O libimobiledevice.zip`
-    * `wget https://github.com/google/ios-webkit-debug-proxy/archive/v1.8.1.zip -O ios-webkit-debug-proxy.zip`
+    * `wget https://github.com/OutSystems/ios-webkit-debug-proxy/archive/outsystems.zip -O ios-webkit-debug-proxy.zip`
     * `wget https://ftp.pcre.org/pub/pcre/pcre-8.41.zip -O pcre-8.41.zip`
 
 11. Extract projects
