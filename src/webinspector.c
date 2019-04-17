@@ -101,7 +101,7 @@ int wi_connect(const char *device_id, char **to_device_id,
 
   // get phone
   if (idevice_new(&phone, device_id)) {
-    perror("No iPhone found, is it plugged in?");
+    fprintf(stderr, "No device found, is it plugged in?\n");
     goto leave_cleanup;
   }
 
