@@ -96,6 +96,7 @@ struct iwdp_iport_struct {
   // iOS device_id, e.g. ddc86a518cd948e13bbdeadbeef00788ea35fcf9
   char *device_id;
   char *device_name;
+  int device_os_version;
 
   // null if the device is detached
   iwdp_iwi_t iwi;
@@ -404,7 +405,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
     return DL_SUCCESS;
   }
   char *device_name = iport->device_name;
-  int device_version = 0;
+  int device_os_version = 0;
 
   // connect to inspector
   int wi_fd;
@@ -421,7 +422,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
     wi_fd = self->connect(self, "localhost", 27753);
   } else {
     wi_fd = self->attach(self, device_id, NULL,
-      (device_name ? NULL : &device_name), &device_version);
+      (device_name ? NULL : &device_name), &device_os_version);
   }
   if (wi_fd < 0) {
     self->remove_fd(self, iport->s_fd);
@@ -431,7 +432,8 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
     return DL_SUCCESS;
   }
   iport->device_name = (device_name ? device_name : strdup(device_id));
-  iwdp_iwi_t iwi = iwdp_iwi_new(!is_sim && device_version < 0xb0000,
+  iport->device_os_version = device_os_version;
+  iwdp_iwi_t iwi = iwdp_iwi_new(!is_sim && device_os_version < 0xb0000,
       self->is_debug);
   iwi->iport = iport;
   iport->iwi = iwi;
@@ -1583,13 +1585,19 @@ char *iwdp_iports_to_text(iwdp_iport_t *iports, bool want_json,
         char* escaped_device_name = iwdp_escape_json_string_val(
             iport->device_name ? iport->device_name : "");
 
+        int os_version_major = (iport->device_os_version >> 16) & 0xff;
+        int os_version_minor = (iport->device_os_version >> 8) & 0xff;
+        int os_version_patch = iport->device_os_version & 0xff;
+
         int res = asprintf(&s,
             "%s{\n"
             "   \"deviceId\": \"%s\",\n"
             "   \"deviceName\": \"%s\",\n"
+            "   \"deviceOSVersion\": \"%d.%d.%d\",\n"
             "   \"url\": \"%s:%d\"\n"
             "}",
             (sum_len ? "," : ""), escaped_device_id, escaped_device_name,
+            os_version_major, os_version_minor, os_version_patch,
             (host ? host : "localhost"), iport->port);
 
         free(escaped_device_id);

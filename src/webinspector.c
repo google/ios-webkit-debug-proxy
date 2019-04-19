@@ -89,7 +89,7 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
 #endif
 
 int wi_connect(const char *device_id, char **to_device_id,
-    char **to_device_name, int *to_device_version, int recv_timeout) {
+    char **to_device_name, int *to_device_os_version, int recv_timeout) {
   int ret = -1;
 
   idevice_t phone = NULL;
@@ -126,18 +126,18 @@ int wi_connect(const char *device_id, char **to_device_id,
     plist_free(node);
     node = NULL;
   }
-  if (to_device_version &&
+  if (to_device_os_version &&
       !lockdownd_get_value(client, NULL, "ProductVersion", &node)) {
     int vers[3] = {0, 0, 0};
     char *s_version = NULL;
     plist_get_string_val(node, &s_version);
     if (s_version && sscanf(s_version, "%d.%d.%d",
           &vers[0], &vers[1], &vers[2]) >= 2) {
-      *to_device_version = ((vers[0] & 0xFF) << 16) |
-                           ((vers[1] & 0xFF) << 8)  |
-                            (vers[2] & 0xFF);
+      *to_device_os_version = ((vers[0] & 0xFF) << 16) |
+                              ((vers[1] & 0xFF) << 8)  |
+                               (vers[2] & 0xFF);
     } else {
-      *to_device_version = 0;
+      *to_device_os_version = 0;
     }
     free(s_version);
     plist_free(node);

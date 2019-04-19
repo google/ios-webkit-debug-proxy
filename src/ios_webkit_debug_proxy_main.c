@@ -110,9 +110,9 @@ int iwdpm_subscribe(iwdp_t iwdp) {
   return dl_connect(-1);
 }
 int iwdpm_attach(iwdp_t iwdp, const char *device_id, char **to_device_id,
-    char **to_device_name, int *to_device_version) {
+    char **to_device_name, int *to_device_os_version) {
   return wi_connect(device_id, to_device_id, to_device_name,
-      to_device_version, -1);
+      to_device_os_version, -1);
 }
 iwdp_status iwdpm_select_port(iwdp_t iwdp, const char *device_id,
     int *to_port, int *to_min_port, int *to_max_port) {
