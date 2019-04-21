@@ -83,8 +83,8 @@ struct iwdp_struct {
   int (*listen)(iwdp_t self, int port);
 
   // Connect to a host:port for static data.
-  // @param hostname e.g. "chrome-devtools-frontend.appspot.com"
-  int (*connect)(iwdp_t self, const char *hostname, int port);
+  // @param hostname_with_port e.g. "chrome-devtools-frontend.appspot.com:8080"
+  int (*connect)(iwdp_t self, const char *hostname_with_port);
 
   // Send bytes to fd.
   iwdp_status (*send)(iwdp_t self, int fd, const char *data, size_t length);

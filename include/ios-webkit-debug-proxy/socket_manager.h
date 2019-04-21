@@ -19,7 +19,7 @@ extern "C" {
 int sm_listen(int port);
 
 // Connect to a server, return the file descriptor (or -1 for error).
-int sm_connect(const char *hostname, int port);
+int sm_connect(const char *socket_addr);
 
 
 typedef uint8_t sm_status;

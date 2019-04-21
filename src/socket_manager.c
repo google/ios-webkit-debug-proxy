@@ -124,7 +124,7 @@ int sm_listen(int port) {
   return fd;
 }
 
-int sm_connect(const char *hostname, int port) {
+int sm_connect_tcp(const char *hostname, int port) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = PF_UNSPEC;
@@ -219,6 +219,27 @@ int sm_connect(const char *hostname, int port) {
   }
 #endif
   freeaddrinfo(res0);
+  return ret;
+}
+
+int sm_connect(const char *socket_addr) {
+  const char *s_port = strrchr(socket_addr, ':');
+  int port = 0;
+
+  if (s_port) {
+    s_port += 1;
+    port = strtol(s_port, NULL, 0);
+  }
+
+  if (port <= 0) {
+    return -1;
+  }
+
+  size_t host_len = s_port - 1 - socket_addr;
+  char *host = strndup(socket_addr, host_len);
+
+  int ret = sm_connect_tcp(host, port);
+  free(host);
   return ret;
 }
 

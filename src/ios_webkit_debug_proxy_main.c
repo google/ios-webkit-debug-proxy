@@ -138,8 +138,8 @@ iwdp_status iwdpm_select_port(iwdp_t iwdp, const char *device_id,
 int iwdpm_listen(iwdp_t iwdp, int port) {
   return sm_listen(port);
 }
-int iwdpm_connect(iwdp_t iwdp, const char *hostname, int port) {
-  return sm_connect(hostname, port);
+int iwdpm_connect(iwdp_t iwdp, const char *socket_addr) {
+  return sm_connect(socket_addr);
 }
 iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
