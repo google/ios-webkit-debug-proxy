@@ -39,6 +39,7 @@ struct iwdp_private {
 
   // frontend url, e.g. "http://bar.com/devtools.html" or "/foo/inspector.html"
   char *frontend;
+  char *sim_wi_socket_addr;
 };
 
 
@@ -413,13 +414,12 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
   if (is_sim) {
     // TODO launch webinspectord
     // For now we'll assume Safari starts it for us.
-    // The port 27753 is from `locate com.apple.webinspectord.plist`.
     //
     // `launchctl list` shows:
     //   com.apple.iPhoneSimulator:com.apple.webinspectord
     // so the launch is probably something like:
     //   xpc_connection_create[_mach_service](...webinspectord, ...)?
-    wi_fd = self->connect(self, "localhost:27753");
+    wi_fd = self->connect(self, my->sim_wi_socket_addr);
   } else {
     wi_fd = self->attach(self, device_id, NULL,
       (device_name ? NULL : &device_name), &device_os_version);
@@ -1441,6 +1441,7 @@ void iwdp_free(iwdp_t self) {
     if (my) {
       ht_free(my->device_id_to_iport);
       free(my->frontend);
+      free(my->sim_wi_socket_addr);
       memset(my, 0, sizeof(struct iwdp_private));
       free(my);
     }
@@ -1449,7 +1450,7 @@ void iwdp_free(iwdp_t self) {
   }
 }
 
-iwdp_t iwdp_new(const char *frontend) {
+iwdp_t iwdp_new(const char *frontend, const char *sim_wi_socket_addr) {
   iwdp_t self = (iwdp_t)malloc(sizeof(struct iwdp_struct));
   iwdp_private_t my = (iwdp_private_t)malloc(sizeof(struct iwdp_private));
   if (!self || !my) {
@@ -1465,6 +1466,7 @@ iwdp_t iwdp_new(const char *frontend) {
   self->on_error = iwdp_on_error;
   self->private_state = my;
   my->frontend = (frontend ? strdup(frontend) : NULL);
+  my->sim_wi_socket_addr = strdup(sim_wi_socket_addr);
   my->device_id_to_iport = ht_new(HT_STRING_KEYS);
   if (!my->device_id_to_iport) {
     iwdp_free(self);

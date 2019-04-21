@@ -25,7 +25,7 @@ typedef struct iwdp_private *iwdp_private_t;
 
 struct iwdp_struct;
 typedef struct iwdp_struct *iwdp_t;
-iwdp_t iwdp_new(const char* frontend);
+iwdp_t iwdp_new(const char* frontend, const char* sim_wi_socket_addr);
 void iwdp_free(iwdp_t self);
 
 struct iwdp_struct {
