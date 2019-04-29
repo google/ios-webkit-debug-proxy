@@ -190,9 +190,8 @@ or
 Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
 
     brew update
-    brew uninstall ios-webkit-debug-proxy
-    brew uninstall libimobiledevice
-    brew uninstall usbmuxd
+    brew unlink libimobiledevice ios-webkit-debug-proxy usbmuxd
+    brew uninstall --force libimobiledevice ios-webkit-debug-proxy usbmuxd
     brew install --HEAD usbmuxd
     brew install --HEAD libimobiledevice
     brew install -s ios-webkit-debug-proxy
