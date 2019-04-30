@@ -194,11 +194,20 @@ Please upgrade libimobiledevice to version from master and rebuild ios-webkit-de
     brew reinstall --HEAD libimobiledevice
     brew reinstall -s ios-webkit-debug-proxy
 
+
+##### Inspectable pages list is empty for iOS >= 12.2
+
+Please upgrade usbmuxd to version from master
+
+    brew update
+    brew install --HEAD usbmuxd
+
 ##### Can not see Simulator
 
   - Make sure you started simulator before the proxy
   - Check that webinspector switch is enabled (Settings -> Safari -> Advanced -> Web Inspector)
   - Most likely simulator's web inspector daemon listens on ipv6 interface, check that you have `::1 localhost` line in `/etc/hosts`
+
 
 ##### If no luck so far...
 Lastly, always try replugging in the USB cable.
