@@ -25,7 +25,7 @@ typedef struct iwdp_private *iwdp_private_t;
 
 struct iwdp_struct;
 typedef struct iwdp_struct *iwdp_t;
-iwdp_t iwdp_new(const char* frontend);
+iwdp_t iwdp_new(const char* frontend, const char* sim_wi_socket_addr);
 void iwdp_free(iwdp_t self);
 
 struct iwdp_struct {
@@ -83,8 +83,8 @@ struct iwdp_struct {
   int (*listen)(iwdp_t self, int port);
 
   // Connect to a host:port for static data.
-  // @param hostname e.g. "chrome-devtools-frontend.appspot.com"
-  int (*connect)(iwdp_t self, const char *hostname, int port);
+  // @param hostname_with_port e.g. "chrome-devtools-frontend.appspot.com:8080"
+  int (*connect)(iwdp_t self, const char *hostname_with_port);
 
   // Send bytes to fd.
   iwdp_status (*send)(iwdp_t self, int fd, const char *data, size_t length);

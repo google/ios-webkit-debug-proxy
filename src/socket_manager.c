@@ -24,6 +24,8 @@
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 #endif
 
 #include "char_buffer.h"
@@ -124,7 +126,43 @@ int sm_listen(int port) {
   return fd;
 }
 
-int sm_connect(const char *hostname, int port) {
+#ifndef WIN32
+int sm_connect_unix(const char *filename) {
+  struct sockaddr_un name;
+  int sfd = -1;
+  struct stat fst;
+
+  if (stat(filename, &fst) != 0 || !S_ISSOCK(fst.st_mode)) {
+    fprintf(stderr, "File '%s' is not a socket: %s\n", filename,
+        strerror(errno));
+    return -1;
+  }
+
+  if ((sfd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0) {
+    perror("create socket failed");
+    return -1;
+  }
+
+  int opts = fcntl(sfd, F_GETFL);
+  if (fcntl(sfd, F_SETFL, (opts | O_NONBLOCK)) < 0) {
+    perror("failed to set socket to non-blocking");
+    return -1;
+  }
+
+  name.sun_family = AF_UNIX;
+  strncpy(name.sun_path, filename, sizeof(name.sun_path) - 1);
+
+  if (connect(sfd, (struct sockaddr*)&name, sizeof(name)) < 0) {
+    close(sfd);
+    perror("connect failed");
+    return -1;
+  }
+
+  return sfd;
+}
+#endif
+
+int sm_connect_tcp(const char *hostname, int port) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = PF_UNSPEC;
@@ -220,6 +258,35 @@ int sm_connect(const char *hostname, int port) {
 #endif
   freeaddrinfo(res0);
   return ret;
+}
+
+int sm_connect(const char *socket_addr) {
+  if (strncmp(socket_addr, "unix:", 5) == 0) {
+#ifdef WIN32
+    return -1;
+#else
+    return sm_connect_unix(socket_addr + 5);
+#endif
+  } else {
+    const char *s_port = strrchr(socket_addr, ':');
+    int port = 0;
+
+    if (s_port) {
+      s_port += 1;
+      port = strtol(s_port, NULL, 0);
+    }
+
+    if (port <= 0) {
+      return -1;
+    }
+
+    size_t host_len = s_port - 1 - socket_addr;
+    char *host = strndup(socket_addr, host_len);
+
+    int ret = sm_connect_tcp(host, port);
+    free(host);
+    return ret;
+  }
 }
 
 

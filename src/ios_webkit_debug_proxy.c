@@ -39,6 +39,7 @@ struct iwdp_private {
 
   // frontend url, e.g. "http://bar.com/devtools.html" or "/foo/inspector.html"
   char *frontend;
+  char *sim_wi_socket_addr;
 };
 
 
@@ -413,13 +414,12 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
   if (is_sim) {
     // TODO launch webinspectord
     // For now we'll assume Safari starts it for us.
-    // The port 27753 is from `locate com.apple.webinspectord.plist`.
     //
     // `launchctl list` shows:
     //   com.apple.iPhoneSimulator:com.apple.webinspectord
     // so the launch is probably something like:
     //   xpc_connection_create[_mach_service](...webinspectord, ...)?
-    wi_fd = self->connect(self, "localhost", 27753);
+    wi_fd = self->connect(self, my->sim_wi_socket_addr);
   } else {
     wi_fd = self->attach(self, device_id, NULL,
       (device_name ? NULL : &device_name), &device_os_version);
@@ -948,24 +948,28 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
     return iwdp_send_http(ws, is_head, "403 Forbidden", ".txt", "Invalid path");
   }
   const char *fe_port = strchr(fe_host, ':');
-  fe_port = (fe_port && fe_port <= fe_path ? fe_port + 1 :
+  fe_port = (fe_port && fe_port <= fe_path ? fe_port :
       NULL); // e.g. "http://foo.com/bar:x"
-  size_t fe_host_len = ((fe_port ? fe_port - 1 : fe_path) - fe_host);
+  size_t fe_host_len = ((fe_port ? fe_port : fe_path) - fe_host);
   char *host = strndup(fe_host, fe_host_len);
-  int port = 80;
-  if (fe_port) {
-    char *sport = strndup(fe_port, fe_path - fe_port);
-    int port2 = strtol(fe_port, NULL, 0);
-    free(sport);
-    port = (port2 > 0 ? port2 : port);
-  }
 
-  int fs_fd = self->connect(self, host, port);
+  char *host_with_port;
+  char *port = NULL;
+  if (fe_port) {
+    port = strndup(fe_port, fe_path - fe_port);
+  }
+  if (asprintf(&host_with_port, "%s%s", host, port ? port : ":80") < 0) {
+    return self->on_error(self, "asprintf failed");
+  };
+  free(port);
+
+  int fs_fd = self->connect(self, host_with_port);
   if (fs_fd < 0) {
     char *error;
-    if (asprintf(&error, "Unable to connect to %s:%d", host, port) < 0) {
+    if (asprintf(&error, "Unable to connect to %s", host_with_port) < 0) {
       return self->on_error(self, "asprintf failed");
     }
+    free(host_with_port);
     free(host);
     free(path);
     ws_status ret = iwdp_send_http(ws, is_head, "500 Server Error", ".txt",
@@ -978,6 +982,7 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
   ifs->fs_fd = fs_fd;
   iws->ifs = ifs;
   if (self->add_fd(self, fs_fd, ifs, false)) {
+    free(host_with_port);
     free(host);
     free(path);
     return self->on_error(self, "Unable to add fd %d", fs_fd);
@@ -992,6 +997,7 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
       (is_head ? "HEAD" : "GET"), path, host) < 0) {
     return self->on_error(self, "asprintf failed");
   }
+  free(host_with_port);
   free(host);
   free(path);
   size_t length = strlen(data);
@@ -1435,6 +1441,7 @@ void iwdp_free(iwdp_t self) {
     if (my) {
       ht_free(my->device_id_to_iport);
       free(my->frontend);
+      free(my->sim_wi_socket_addr);
       memset(my, 0, sizeof(struct iwdp_private));
       free(my);
     }
@@ -1443,7 +1450,7 @@ void iwdp_free(iwdp_t self) {
   }
 }
 
-iwdp_t iwdp_new(const char *frontend) {
+iwdp_t iwdp_new(const char *frontend, const char *sim_wi_socket_addr) {
   iwdp_t self = (iwdp_t)malloc(sizeof(struct iwdp_struct));
   iwdp_private_t my = (iwdp_private_t)malloc(sizeof(struct iwdp_private));
   if (!self || !my) {
@@ -1459,6 +1466,7 @@ iwdp_t iwdp_new(const char *frontend) {
   self->on_error = iwdp_on_error;
   self->private_state = my;
   my->frontend = (frontend ? strdup(frontend) : NULL);
+  my->sim_wi_socket_addr = strdup(sim_wi_socket_addr);
   my->device_id_to_iport = ht_new(HT_STRING_KEYS);
   if (!my->device_id_to_iport) {
     iwdp_free(self);

@@ -41,6 +41,7 @@
 struct iwdpm_struct {
   char *config;
   char *frontend;
+  char *sim_wi_socket_addr;
   bool is_debug;
 
   pc_t pc;
@@ -138,8 +139,8 @@ iwdp_status iwdpm_select_port(iwdp_t iwdp, const char *device_id,
 int iwdpm_listen(iwdp_t iwdp, int port) {
   return sm_listen(port);
 }
-int iwdpm_connect(iwdp_t iwdp, const char *hostname, int port) {
-  return sm_connect(hostname, port);
+int iwdpm_connect(iwdp_t iwdp, const char *socket_addr) {
+  return sm_connect(socket_addr);
 }
 iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
@@ -174,7 +175,7 @@ sm_status iwdpm_on_close(sm_t sm, int fd, void *value, bool is_server) {
 
 void iwdpm_create_bridge(iwdpm_t self) {
   sm_t sm = sm_new(4096);
-  iwdp_t iwdp = iwdp_new(self->frontend);
+  iwdp_t iwdp = iwdp_new(self->frontend, self->sim_wi_socket_addr);
   if (!sm || !iwdp) {
     sm_free(sm);
     return;
@@ -207,6 +208,7 @@ void iwdpm_free(iwdpm_t self) {
     sm_free(self->sm);
     free(self->config);
     free(self->frontend);
+    free(self->sim_wi_socket_addr);
     memset(self, 0, sizeof(struct iwdpm_struct));
     free(self);
   }
@@ -228,6 +230,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
     {"config", 1, NULL, 'c'},
     {"frontend", 1, NULL, 'f'},
     {"no-frontend", 0, NULL, 'F'},
+    {"simulator-webinspector", 1, NULL, 's'},
     {"debug", 0, NULL, 'd'},
     {"help", 0, NULL, 'h'},
     {"version", 0, NULL, 'V'},
@@ -236,13 +239,16 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
   const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
   const char *DEFAULT_FRONTEND =
      "http://chrome-devtools-frontend.appspot.com/static/27.0.1453.93/devtools.html";
+  // The port 27753 is from `locate com.apple.webinspectord.plist`
+  const char *DEFAULT_SIM_WI_SOCKET_ADDR = "localhost:27753";
 
   self->config = strdup(DEFAULT_CONFIG);
   self->frontend = strdup(DEFAULT_FRONTEND);
+  self->sim_wi_socket_addr = strdup(DEFAULT_SIM_WI_SOCKET_ADDR);
 
   int ret = 0;
   while (!ret) {
-    int c = getopt_long(argc, argv, "hVu:c:f:Fd", longopts, (int *)0);
+    int c = getopt_long(argc, argv, "hVu:c:f:Fs:d", longopts, (int *)0);
     if (c == -1) {
       break;
     }
@@ -283,6 +289,10 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
       case 'c':
         free(self->config);
         self->config = strdup(optarg);
+        break;
+      case 's':
+        free(self->sim_wi_socket_addr);
+        self->sim_wi_socket_addr = strdup(optarg);
         break;
       case 'f':
       case 'F':
@@ -327,7 +337,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
         "OPTIONS:\n"
         "\n"
         "  -u UDID[:minPort-[maxPort]]\tTarget a specific device by its"
-        " 40-digit ID.\n"
+        " digital ID.\n"
         "        minPort defaults to 9222.  maxPort defaults to minPort.\n"
         "        This is shorthand for the following \"-c\" option.\n"
         "\n"
@@ -362,10 +372,23 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
         "\n"
         "  -F, --no-frontend\tDisable the DevTools frontend.\n"
         "\n"
+        "  -s, --simulator-webinspector\tSimulator web inspector socket\n"
+        "        address. Provided value value needs to be in format\n"
+        "        HOSTNAME:PORT or UNIX:PATH\n"
+        "        Defaults to:\n"
+        "          %s\n"
+        "        Examples:\n"
+        "          * TCP socket:\n"
+        "            192.168.0.20:27753\n"
+        "          * Unix domain socket:\n"
+        "            unix:/private/tmp/com.apple.launchd.2j5k1TMh6i/"
+        "com.apple.webinspectord_sim.socket\n"
+        "\n"
         "  -d, --debug\t\tEnable debug output.\n"
         "  -h, --help\t\tPrint this usage information.\n"
         "  -V, --version\t\tPrint version information and exit.\n"
-        "\n", (name ? name + 1 : argv[0]), PACKAGE_VERSION, DEFAULT_CONFIG, DEFAULT_FRONTEND);
+        "\n", (name ? name + 1 : argv[0]), PACKAGE_VERSION, DEFAULT_CONFIG,
+      DEFAULT_FRONTEND, DEFAULT_SIM_WI_SOCKET_ADDR);
   }
   return ret;
 }
