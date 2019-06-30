@@ -190,9 +190,10 @@ or
 Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
 
     brew update
-    brew reinstall --HEAD usbmuxd
-    brew reinstall --HEAD libimobiledevice
-    brew reinstall -s ios-webkit-debug-proxy
+    brew uninstall --force libimobiledevice ios-webkit-debug-proxy usbmuxd
+    brew install --HEAD usbmuxd
+    brew install --HEAD libimobiledevice
+    brew install -s ios-webkit-debug-proxy
 
 
 ##### Inspectable pages list is empty for iOS >= 12.2
