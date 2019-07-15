@@ -26,10 +26,11 @@
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
+#include <libimobiledevice/service.h>
 
 #include "char_buffer.h"
 #include "webinspector.h"
-
+#include "socket_manager.h"
 
 #define WI_DEBUG 1
 
@@ -47,6 +48,18 @@ struct wi_private {
   size_t body_length;
 };
 
+// iOS 13 --------------------------------------
+int g_vers[3] = {0, 0, 0};
+
+ struct service_client_private 
+ {
+ 	idevice_connection_t connection;
+ };
+	
+extern idevice_connection_t connectionSSL;
+// iOS 13 --------------------------------------
+ 
+
 //
 // CONNECT
 //
@@ -63,20 +76,34 @@ struct idevice_connection_private {
   void *ssl_data;
 };
 
-wi_status idevice_connection_get_fd(idevice_connection_t connection,
-    int *to_fd) {
-  if (!connection || !to_fd) {
+wi_status idevice_connection_get_fd(idevice_connection_t connection, int *to_fd) 
+{
+  if (!connection || !to_fd) 
     return WI_ERROR;
+  
+  idevice_connection_private *c = ((sizeof(*connection) == sizeof(idevice_connection_private)) ? (idevice_connection_private *) connection : NULL);
+  
+  bool bInvalidStructure = false;
+  
+  if(g_vers[0] >= 13)
+  {
+  	 if (!c || c->type != CONNECTION_USBMUXD || c->data <=0) 
+		 bInvalidStructure = true;
   }
-  idevice_connection_private *c = (
-      (sizeof(*connection) == sizeof(idevice_connection_private)) ?
-      (idevice_connection_private *) connection : NULL);
-  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) {
-    perror("Invalid idevice_connection struct.  Please verify that "
-        __FILE__ "'s idevice_connection_private matches your version of"
-        " libimbiledevice/src/idevice.h");
-    return WI_ERROR;
+  else if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) 
+  {
+	  bInvalidStructure = true;
   }
+  
+  if(bInvalidStructure)
+  {
+      perror("Invalid idevice_connection struct.  Please verify that "
+          __FILE__ "'s idevice_connection_private matches your version of"
+          " libimbiledevice/src/idevice.h");
+      return WI_ERROR;
+  }
+  
+  
   int fd = (int)(long)c->data;
   struct stat fd_stat;
   if (fstat(fd, &fd_stat) < 0 || !S_ISSOCK(fd_stat.st_mode)) {
@@ -87,6 +114,20 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
   return WI_SUCCESS;
 }
 #endif
+
+// ------- MICKEL
+enum connection_type {
+	CONNECTION_USBMUXD = 1
+};
+struct idevice_connection_private {
+	char *udid;  // added in v1.1.6
+	enum connection_type type;
+	void *data;
+	void *ssl_data;
+};
+// ------- MICKEL
+
+
 
 int wi_connect(const char *device_id, char **to_device_id,
     char **to_device_name, int *to_device_os_version, int recv_timeout) {
@@ -128,14 +169,14 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
   if (to_device_os_version &&
       !lockdownd_get_value(client, NULL, "ProductVersion", &node)) {
-    int vers[3] = {0, 0, 0};
+    
     char *s_version = NULL;
     plist_get_string_val(node, &s_version);
     if (s_version && sscanf(s_version, "%d.%d.%d",
-          &vers[0], &vers[1], &vers[2]) >= 2) {
-      *to_device_os_version = ((vers[0] & 0xFF) << 16) |
-                              ((vers[1] & 0xFF) << 8)  |
-                               (vers[2] & 0xFF);
+          &g_vers[0], &g_vers[1], &g_vers[2]) >= 2) {
+      *to_device_os_version = ((g_vers[0] & 0xFF) << 16) |
+                              ((g_vers[1] & 0xFF) << 8)  |
+                               (g_vers[2] & 0xFF);
     } else {
       *to_device_os_version = 0;
     }
@@ -155,6 +196,24 @@ int wi_connect(const char *device_id, char **to_device_id,
     perror("idevice_connect failed!");
     goto leave_cleanup;
   }
+
+
+  // iOS 13.x ---------------------------------------------------------------------
+  if(g_vers[0]>=13) // the wi connection is ssl based started iOS 13.0 and higher ...
+  {
+	  	service_client_t client_srv = (service_client_t)malloc(sizeof(struct service_client_private));
+
+	  	  client_srv->connection = connection;
+
+	  	  /* enable SSL if requested */
+	  	  if (service->ssl_enabled == 1)
+		  {
+	  		    service_enable_ssl(client_srv);
+		  		connectionSSL = client_srv->connection;
+	  	  }
+  }
+
+ // iOS 13.x ---------------------------------------------------------------------
 
   if (client) {
     // not needed anymore
@@ -208,7 +267,7 @@ leave_cleanup:
 #endif
   // don't call usbmuxd_disconnect(fd)!
   //idevice_disconnect(connection);
-  free(connection);
+  //free(connection); // connectionSSL reuses - keep it...
   lockdownd_client_free(client);
   idevice_free(phone);
   return ret;
