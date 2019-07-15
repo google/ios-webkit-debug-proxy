@@ -14,6 +14,10 @@
 
 #define MIN_LENGTH 1024
 
+// place holder ....
+void* connectionSSL = NULL;
+
+
 cb_t cb_new() {
   cb_t self = (cb_t)malloc(sizeof(struct cb_struct));
   if (self) {

@@ -32,6 +32,7 @@ typedef int8_t ws_state;
 #define STATE_CLOSED 7
 
 
+
 struct ws_private {
   ws_state state;
 
