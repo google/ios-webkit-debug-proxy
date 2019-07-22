@@ -15,17 +15,28 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
+#include <libimobiledevice/libimobiledevice.h>
+#include <libimobiledevice/service.h>
+	
 // Bind a server port, return the file descriptor (or -1 for error).
 int sm_listen(int port);
 
 // Connect to a server, return the file descriptor (or -1 for error).
 int sm_connect(const char *socket_addr);
-
-
+    
 typedef uint8_t sm_status;
 #define SM_ERROR 1
 #define SM_SUCCESS 0
 
+#define SSL_ERROR_NONE				0
+#define SSL_ERROR_SSL				1
+#define SSL_ERROR_WANT_READ			2
+#define SSL_ERROR_WANT_WRITE		3
+#define SSL_ERROR_WANT_X509_LOOKUP	4
+#define SSL_ERROR_SYSCALL			5 /* look at error stack/return value/errno */
+#define SSL_ERROR_ZERO_RETURN		6
+#define SSL_ERROR_WANT_CONNECT		7
+#define SSL_ERROR_WANT_ACCEPT		8
 
 struct sm_private;
 typedef struct sm_private *sm_private_t;
@@ -76,6 +87,24 @@ struct sm_struct {
   // For internal use only:
   sm_private_t private_state;
 };
+
+
+// based on libimobiledevice/src/idevice.h
+struct service_client_private 
+{
+ 	idevice_connection_t connection;
+};	
+enum connection_type {
+	CONNECTION_USBMUXD = 1
+};
+struct idevice_connection_private {
+	char *udid;  // added in v1.1.6
+	enum connection_type type;
+	void *data;
+	void *ssl_data;
+};
+
+
 
 #ifdef	__cplusplus
 }

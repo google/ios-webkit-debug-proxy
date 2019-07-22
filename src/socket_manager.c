@@ -26,21 +26,14 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <pthread.h>
 #endif
 
 #include <openssl/ssl.h>
-
-#include <libimobiledevice/libimobiledevice.h>
-#include <libimobiledevice/service.h>
-#include <time.h>
-
 
 #include "char_buffer.h"
 #include "socket_manager.h"
 #include "hash_table.h"
 #include "strndup.h"
-
 
 #if defined(__MACH__) || defined(WIN32)
 #define SIZEOF_FD_SET sizeof(struct fd_set)
@@ -49,33 +42,6 @@
 #define SIZEOF_FD_SET sizeof(fd_set)
 #define RECV_FLAGS MSG_DONTWAIT
 #endif
-
-// SSL based communication types import 
-#define SSL_ERROR_NONE				0
-#define SSL_ERROR_SSL				1
-#define SSL_ERROR_WANT_READ			2
-#define SSL_ERROR_WANT_WRITE		3
-#define SSL_ERROR_WANT_X509_LOOKUP	4
-#define SSL_ERROR_SYSCALL			5 /* look at error stack/return value/errno */
-#define SSL_ERROR_ZERO_RETURN		6
-#define SSL_ERROR_WANT_CONNECT		7
-#define SSL_ERROR_WANT_ACCEPT		8
-
-enum connection_type {
-	CONNECTION_USBMUXD = 1
-};
-
-struct idevice_connection_private {
-	char *udid;  // added in v1.1.6
-	enum connection_type type;
-	void *data;
-	void *ssl_data;
-};
-
-extern idevice_connection_t connectionSSL;
-#define IS_SSL_FD(fd) if(connectionSSL!=NULL && (fd == (int)(long)connectionSSL->data))
-
-// SSL based communication types import 
 
 struct sm_private {
   struct timeval timeout;
@@ -622,33 +588,25 @@ void sm_resend(sm_t self, int fd) {
     sendq = nextq;
   }
 }
-
-
-void sm_recv_SSL(sm_t self,int fd)
-{
-	sm_private_t my = self->private_state;
-	while (1)
-	{
-		ssize_t read_bytes = 0;
-		idevice_error_t error = idevice_connection_receive(connectionSSL, my->tmp_buf, my->tmp_buf_length, (uint32_t*)&read_bytes);
-		if (error != IDEVICE_E_SUCCESS)
-			break;
-		
-		void *value = ht_get_value(my->fd_to_value, HT_KEY(fd));
-		if (read_bytes == 0 || self->on_recv(self, fd, value, my->tmp_buf, read_bytes))
-			break;
-	}
-
-	my->curr_recv_fd = 0;
-}
-
  
 void sm_recv(sm_t self, int fd) 
 {
-	
-	IS_SSL_FD(fd)
-	{
-		return sm_recv_SSL(self,fd);
+    sm_private_t my = self->private_state;
+    my->curr_recv_fd = fd;
+
+  while (1) {
+	ssize_t read_bytes = 0;
+  	IS_SSL_FD(fd)
+  	{
+		idevice_error_t error = idevice_connection_receive(connectionSSL, 
+															my->tmp_buf, 
+															my->tmp_buf_length, 
+															(uint32_t*)&read_bytes);
+		if (error != IDEVICE_E_SUCCESS)
+			break; // SSL_ERROR_WANT_READ ?
+  	}
+	else {
+    	read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
 	}
 	
   sm_private_t my = self->private_state;
