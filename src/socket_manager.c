@@ -31,6 +31,7 @@
 #include "char_buffer.h"
 #include "socket_manager.h"
 #include "hash_table.h"
+#include "strndup.h"
 
 #if defined(__MACH__) || defined(WIN32)
 #define SIZEOF_FD_SET sizeof(struct fd_set)
@@ -272,15 +273,14 @@ int sm_connect(const char *socket_addr) {
     int port = 0;
 
     if (s_port) {
-      s_port += 1;
-      port = strtol(s_port, NULL, 0);
+      port = strtol(s_port + 1, NULL, 0);
     }
 
     if (port <= 0) {
       return -1;
     }
 
-    size_t host_len = s_port - 1 - socket_addr;
+    size_t host_len = s_port - socket_addr;
     char *host = strndup(socket_addr, host_len);
 
     int ret = sm_connect_tcp(host, port);
