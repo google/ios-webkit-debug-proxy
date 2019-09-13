@@ -12,6 +12,8 @@
 
 #include "char_buffer.h"
 
+void* connectionSSL = NULL;
+
 #define MIN_LENGTH 1024
 
 cb_t cb_new() {

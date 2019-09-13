@@ -26,12 +26,15 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <pthread.h>
+#include <time.h>
 #endif
 
 #include "char_buffer.h"
 #include "socket_manager.h"
 #include "hash_table.h"
 #include "strndup.h"
+
 
 #if defined(__MACH__) || defined(WIN32)
 #define SIZEOF_FD_SET sizeof(struct fd_set)
@@ -40,6 +43,9 @@
 #define SIZEOF_FD_SET sizeof(fd_set)
 #define RECV_FLAGS MSG_DONTWAIT
 #endif
+
+extern idevice_connection_t connectionSSL;
+#define IS_SSL_FD(fd) if(connectionSSL!=NULL && (fd == (int)(long)connectionSSL->data))
 
 struct sm_private {
   struct timeval timeout;
@@ -373,8 +379,22 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   return ret;
 }
 
-sm_status sm_send(sm_t self, int fd, const char *data, size_t length,
-    void* value) {
+sm_status sm_send(sm_t self, int fd, const char *data, size_t length, void* value) 
+{
+	IS_SSL_FD(fd)
+	{
+		uint32_t sent_bytes = 0;
+		if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
+		{
+			// wait 200 msec...
+			usleep(200 *1000); // SSL_ERROR_WANT_WRITE? - to do expose the SSL error by libimobiledevice hedaer...
+			if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
+				return SM_ERROR; // SSL_ERROR_SSL??? 
+			
+		}
+		return SM_SUCCESS; 
+	}
+			
   sm_private_t my = self->private_state;
   sm_sendq_t sendq = (sm_sendq_t)ht_get_value(my->fd_to_sendq, HT_KEY(fd));
   const char *head = data;
@@ -531,13 +551,28 @@ void sm_resend(sm_t self, int fd) {
     sendq = nextq;
   }
 }
+ 
+void sm_recv(sm_t self, int fd) 
+{
+    sm_private_t my = self->private_state;
+    my->curr_recv_fd = fd;
 
-void sm_recv(sm_t self, int fd) {
-  sm_private_t my = self->private_state;
-  my->curr_recv_fd = fd;
   while (1) {
-    ssize_t read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
-    if (read_bytes < 0) {
+	ssize_t read_bytes = 0;
+  	IS_SSL_FD(fd)
+  	{
+		idevice_error_t error = idevice_connection_receive(connectionSSL, 
+															my->tmp_buf, 
+															my->tmp_buf_length, 
+															(uint32_t*)&read_bytes);
+		if (error != IDEVICE_E_SUCCESS)
+			break; // SSL_ERROR_WANT_READ ?
+  	}
+	else {
+    	read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
+	}
+    if (read_bytes < 0) 
+	{
 #ifdef WIN32
       if (WSAGetLastError() != WSAEWOULDBLOCK) {
         fprintf(stderr, "recv failed with error %d\n", WSAGetLastError());
@@ -558,6 +593,7 @@ void sm_recv(sm_t self, int fd) {
     }
   }
   my->curr_recv_fd = 0;
+ 
 }
 
 int sm_select(sm_t self, int timeout_secs) {
