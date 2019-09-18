@@ -76,11 +76,59 @@
 22. Go to **ios-webkit-debug-proxy** folder
     * `cd /home/ios-webkit-debug-proxy-outsystems/`
 
-23. Build library
+23. **(Check)** Check if the following changes are commited
+    ```diff
+    --- a/src/ios_webkit_debug_proxy_main.c
+    +++ b/src/ios_webkit_debug_proxy_main.c
+    @@ -231,6 +231,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
+        {"debug", 0, NULL, 'd'},
+        {"help", 0, NULL, 'h'},
+        {"version", 0, NULL, 'V'},
+    +    {"no-buffer", 0, NULL, 'B'},
+        {NULL, 0, NULL, 0}
+    };
+    const char *DEFAULT_CONFIG = "null:9221,:9222-9322";
+    @@ -292,6 +293,10 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
+        case 'd':
+            self->is_debug = true;
+            break;
+    +      case 'B':
+    +        setbuf(stdout, NULL);
+    +        setbuf(stderr, NULL);
+    +        break;
+        default:
+            ret = 2;
+            break;
+    ```
+
+    ```diff
+    --- a/src/socket_manager.c
+    +++ b/src/socket_manager.c
+    @@ -87,7 +87,7 @@ int sm_listen(int port) {
+    }
+    struct sockaddr_in local;
+    local.sin_family = AF_INET;
+    -  local.sin_addr.s_addr = INADDR_ANY;
+    +  local.sin_addr.s_addr = htonl(INADDR_ANY);
+    local.sin_port = htons(port);
+    int ra = 1;
+    u_long nb = 1;
+    @@ -87,7 +87,7 @@ int sm_listen(int port) {
+    }
+    struct sockaddr_in local;
+    local.sin_family = AF_INET;
+    -  local.sin_addr.s_addr = INADDR_ANY;
+    +  local.sin_addr.s_addr = htonl(INADDR_ANY);
+    local.sin_port = htons(port);
+    int ra = 1;
+    u_long nb = 1;
+    ```
+
+24. Build library
     * `./autogen.sh`
     * `make -j4`
 
-24. Use **exe** generated in **.libs** folder, and get all other necessary **dll’s**
+25. Use **exe** generated in **.libs** folder, and get all other necessary **dll’s**
     * `C:\msys32\home\ios-webkit-debug-proxy-outsystems\src\.libs\ios_webkit_debug_proxy.exe`
     * `C:\msys32\home\openssl-OpenSSL_1_1_1\libcrypto-1_1.dll`
     * `C:\msys32\home\openssl-OpenSSL_1_1_1\libssl-1_1.dll`
