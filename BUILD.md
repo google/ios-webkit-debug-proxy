@@ -76,8 +76,10 @@
 22. Go to **ios-webkit-debug-proxy** folder
     * `cd /home/ios-webkit-debug-proxy-outsystems/`
 
-23. **(Check)** Check if the following changes are commited
+23. Check if the following changes are commited
     ```diff
+    diff --git a/src/ios_webkit_debug_proxy_main.c b/src/ios_webkit_debug_proxy_main.c
+    index f02733e..588bfc7 100644
     --- a/src/ios_webkit_debug_proxy_main.c
     +++ b/src/ios_webkit_debug_proxy_main.c
     @@ -231,6 +231,7 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
@@ -102,26 +104,28 @@
     ```
 
     ```diff
+    diff --git a/src/socket_manager.c b/src/socket_manager.c
+    index c43b53f..807f2d9 100755
     --- a/src/socket_manager.c
     +++ b/src/socket_manager.c
-    @@ -87,7 +87,7 @@ int sm_listen(int port) {
+    @@ -96,7 +96,7 @@ int sm_listen(int port) {
     }
     struct sockaddr_in local;
     local.sin_family = AF_INET;
-    -  local.sin_addr.s_addr = INADDR_ANY;
-    +  local.sin_addr.s_addr = htonl(INADDR_ANY);
+    -  local.sin_addr.s_addr = htonl(INADDR_ANY);
+    +  local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     local.sin_port = htons(port);
     int ra = 1;
     u_long nb = 1;
-    @@ -87,7 +87,7 @@ int sm_listen(int port) {
-    }
+    @@ -117,7 +117,7 @@ int sm_listen(int port) {
+    int opts = fcntl(fd, F_GETFL);
     struct sockaddr_in local;
     local.sin_family = AF_INET;
     -  local.sin_addr.s_addr = INADDR_ANY;
-    +  local.sin_addr.s_addr = htonl(INADDR_ANY);
+    +  local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     local.sin_port = htons(port);
     int ra = 1;
-    u_long nb = 1;
+    int nb = 1;
     ```
 
 24. Build library
