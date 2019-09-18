@@ -65,8 +65,6 @@ static void on_signal(int sig) {
 }
 
 int main(int argc, char** argv) {
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
 
