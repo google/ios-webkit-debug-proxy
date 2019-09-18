@@ -76,26 +76,11 @@
 22. Go to **ios-webkit-debug-proxy** folder
     * `cd /home/ios-webkit-debug-proxy-outsystems/`
 
-_**Warning:** If you are using OutSystems Github fork you don’t need to apply these changes and you can skip to Build library step._
-
-23. Edit **socket_manager.c**
-    * Open `C:\msys32\home\ios-webkit-debug-proxy-outsystems\src\socket_manager.c`
-    * Edit line 120 from:
-        * `local.sin_addr.s_addr = INADDR_ANY;`
-    * To:
-        * `local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);`
-
-24. Edit **ios_webkit_debug_proxy_main.c**
-    * Open `C:\msys32\home\ios-webkit-debug-proxy-outsystems\src\ios_webkit_debug_proxy_main.c`
-    * Add the following lines to the start of the main method:
-        * `setbuf(stdout, NULL);`
-        * `setbuf(stderr, NULL);`
-
-25. Build library
+23. Build library
     * `./autogen.sh`
     * `make -j4`
 
-26. Use **exe** generated in **.libs** folder, and get all other necessary **dll’s**
+24. Use **exe** generated in **.libs** folder, and get all other necessary **dll’s**
     * `C:\msys32\home\ios-webkit-debug-proxy-outsystems\src\.libs\ios_webkit_debug_proxy.exe`
     * `C:\msys32\home\openssl-OpenSSL_1_1_1\libcrypto-1_1.dll`
     * `C:\msys32\home\openssl-OpenSSL_1_1_1\libssl-1_1.dll`
