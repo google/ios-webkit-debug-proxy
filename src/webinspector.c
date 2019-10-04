@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #endif
 
+#include <openssl/ssl.h>
+
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
@@ -51,7 +53,6 @@ struct wi_private {
 // CONNECT
 //
 
-#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
 // based on libimobiledevice/src/idevice.h
 enum connection_type {
   CONNECTION_USBMUXD = 1
@@ -62,7 +63,13 @@ struct idevice_connection_private {
   void *data;
   void *ssl_data;
 };
+struct ssl_data_private {
+	SSL *session;
+	SSL_CTX *ctx;
+};
+typedef struct ssl_data_private *ssl_data_t;
 
+#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
 wi_status idevice_connection_get_fd(idevice_connection_t connection,
     int *to_fd) {
   if (!connection || !to_fd) {
@@ -71,7 +78,7 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
   idevice_connection_private *c = (
       (sizeof(*connection) == sizeof(idevice_connection_private)) ?
       (idevice_connection_private *) connection : NULL);
-  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) {
+  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0) {
     perror("Invalid idevice_connection struct.  Please verify that "
         __FILE__ "'s idevice_connection_private matches your version of"
         " libimbiledevice/src/idevice.h");
@@ -88,8 +95,38 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
 }
 #endif
 
+wi_status idevice_connection_get_ssl_session(idevice_connection_t connection,
+    SSL **to_session) {
+  if (!connection || !to_session) {
+    return WI_ERROR;
+  }
+
+  idevice_connection_private *c = (
+      (sizeof(*connection) == sizeof(idevice_connection_private)) ?
+      (idevice_connection_private *) connection : NULL);
+
+  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0) {
+    perror("Invalid idevice_connection struct. Please verify that "
+        __FILE__ "'s idevice_connection_private matches your version of"
+        " libimbiledevice/src/idevice.h");
+    return WI_ERROR;
+  }
+
+  ssl_data_t sd = (ssl_data_t)c->ssl_data;
+  if (!sd || !sd->session) {
+    perror("Invalid ssl_data struct. Make sure libimobiledevice was compiled"
+        " with openssl. Otherwise please verify that " __FILE__ "'s ssl_data"
+        " matches your version of libimbiledevice/src/idevice.h");
+    return WI_ERROR;
+  }
+
+  *to_session = sd->session;
+  return WI_SUCCESS;
+}
+
 int wi_connect(const char *device_id, char **to_device_id,
-    char **to_device_name, int *to_device_os_version, int recv_timeout) {
+    char **to_device_name, int *to_device_os_version,
+    void **to_ssl_session, int recv_timeout) {
   int ret = -1;
 
   idevice_t phone = NULL;
@@ -98,6 +135,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   lockdownd_client_t client = NULL;
   idevice_connection_t connection = NULL;
   int fd = -1;
+  SSL *ssl_session = NULL;
 
   // get phone
   if (idevice_new(&phone, device_id)) {
@@ -154,6 +192,16 @@ int wi_connect(const char *device_id, char **to_device_id,
   if (idevice_connect(phone, service->port, &connection)) {
     perror("idevice_connect failed!");
     goto leave_cleanup;
+  }
+
+  // enable ssl
+  if (service->ssl_enabled == 1) {
+    if (!to_ssl_session || idevice_connection_enable_ssl(connection) ||
+        idevice_connection_get_ssl_session(connection, &ssl_session)) {
+      perror("ssl connection failed!");
+      goto leave_cleanup;
+    }
+    *to_ssl_session = ssl_session;
   }
 
   if (client) {

@@ -33,7 +33,8 @@ typedef uint8_t wi_status;
 //    positive for milliseconds.
 // @result fd, or -1 for error
 int wi_connect(const char *device_id, char **to_device_id,
-               char **to_device_name, int *to_device_os_version, int recv_timeout);
+               char **to_device_name, int *to_device_os_version,
+               void **to_ssl_session, int recv_timeout);
 
 struct wi_struct;
 typedef struct wi_struct *wi_t;
