@@ -41,7 +41,8 @@ struct sm_struct {
 
   // @param value a value to associate with this fd, which will be passed
   // in future on_accept/on_recv/on_close callbacks.
-  sm_status (*add_fd)(sm_t self, int fd, void *value, bool is_server);
+  sm_status (*add_fd)(sm_t self, int fd, void *ssl_session, void *value, bool
+      is_server);
 
   sm_status (*remove_fd)(sm_t self, int fd);
 

@@ -3,8 +3,8 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src
 
-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS)
-AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS)
+AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(openssl_CFLAGS)
+AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(openssl_LIBS)
 
 noinst_PROGRAMS = ws_echo1 ws_echo2 wi_client dl_client
 

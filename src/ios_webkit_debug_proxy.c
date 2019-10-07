@@ -328,7 +328,7 @@ dl_status iwdp_listen(iwdp_t self, const char *device_id) {
         (device_id ? device_id : "\"devices list\""),
         min_port, max_port);
   }
-  if (self->add_fd(self, s_fd, iport, true)) {
+  if (self->add_fd(self, s_fd, NULL, iport, true)) {
     return self->on_error(self, "add_fd s_fd=%d failed", s_fd);
   }
   iport->s_fd = s_fd;
@@ -358,7 +358,7 @@ iwdp_status iwdp_start(iwdp_t self) {
   }
   idl->dl_fd = dl_fd;
 
-  if (self->add_fd(self, dl_fd, idl, false)) {
+  if (self->add_fd(self, dl_fd, NULL, idl, false)) {
     return self->on_error(self, "add_fd failed");
   }
 
@@ -410,6 +410,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
 
   // connect to inspector
   int wi_fd;
+  void *ssl_session = NULL;
   bool is_sim = !strcmp(device_id, "SIMULATOR");
   if (is_sim) {
     // TODO launch webinspectord
@@ -422,7 +423,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
     wi_fd = self->connect(self, my->sim_wi_socket_addr);
   } else {
     wi_fd = self->attach(self, device_id, NULL,
-      (device_name ? NULL : &device_name), &device_os_version);
+      (device_name ? NULL : &device_name), &device_os_version, &ssl_session);
   }
   if (wi_fd < 0) {
     self->remove_fd(self, iport->s_fd);
@@ -437,7 +438,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
       self->is_debug);
   iwi->iport = iport;
   iport->iwi = iwi;
-  if (self->add_fd(self, wi_fd, iwi, false)) {
+  if (self->add_fd(self, wi_fd, ssl_session, iwi, false)) {
     self->remove_fd(self, iport->s_fd);
     return self->on_error(self, "add_fd wi_fd=%d failed", wi_fd);
   }
@@ -981,7 +982,7 @@ ws_status iwdp_on_static_request_for_http(ws_t ws, bool is_head,
   ifs->iws = iws;
   ifs->fs_fd = fs_fd;
   iws->ifs = ifs;
-  if (self->add_fd(self, fs_fd, ifs, false)) {
+  if (self->add_fd(self, fs_fd, NULL, ifs, false)) {
     free(host_with_port);
     free(host);
     free(path);

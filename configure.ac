@@ -18,6 +18,7 @@ PKG_PROG_PKG_CONFIG
 # Checks for libraries.
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
 PKG_CHECK_MODULES(libplist, libplist >= 1.12)
+PKG_CHECK_MODULES(openssl, openssl >= 0.9.8)
 AC_CHECK_LIB([plist], [plist_to_xml],
              [ ], [AC_MSG_FAILURE([*** Unable to link with libplist])],
              [$libplist_LIBS])
