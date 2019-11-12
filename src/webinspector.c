@@ -53,7 +53,8 @@ struct wi_private {
 // CONNECT
 //
 
-// based on libimobiledevice/src/idevice.h
+#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
+// based on libimobiledevice 1.2.0
 enum connection_type {
   CONNECTION_USBMUXD = 1
 };
@@ -63,13 +64,7 @@ struct idevice_connection_private {
   void *data;
   void *ssl_data;
 };
-struct ssl_data_private {
-	SSL *session;
-	SSL_CTX *ctx;
-};
-typedef struct ssl_data_private *ssl_data_t;
 
-#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
 wi_status idevice_connection_get_fd(idevice_connection_t connection,
     int *to_fd) {
   if (!connection || !to_fd) {
@@ -93,7 +88,21 @@ wi_status idevice_connection_get_fd(idevice_connection_t connection,
   *to_fd = fd;
   return WI_SUCCESS;
 }
+#else
+// based on latest libimobiledevice/src/idevice.h
+struct idevice_connection_private {
+  idevice_t device;
+  enum idevice_connection_type type;
+  void *data;
+  void *ssl_data;
+};
 #endif
+
+struct ssl_data_private {
+	SSL *session;
+	SSL_CTX *ctx;
+};
+typedef struct ssl_data_private *ssl_data_t;
 
 wi_status idevice_connection_get_ssl_session(idevice_connection_t connection,
     SSL **to_session) {
