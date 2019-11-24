@@ -21,7 +21,7 @@ scoop install ios-webkit-debug-proxy
 On Linux:
 
 ```console
-sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev
+sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev libssl-dev
 
 git clone https://github.com/google/ios-webkit-debug-proxy.git
 cd ios-webkit-debug-proxy
