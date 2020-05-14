@@ -20,9 +20,19 @@ scoop install ios-webkit-debug-proxy
 
 On Linux:
 
+Install dependencies available in apt repository:
 ```console
-sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev libssl-dev
+sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libtool libssl-dev
+```
 
+Build and install dependencies that require more recent versions:
+- [libmobiledevice](https://github.com/libimobiledevice/libimobiledevice)
+- [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd)
+- [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
+- [libplist](https://github.com/libimobiledevice/libplist)
+
+Build and install `ios-webkit-debug-proxy`:
+```console
 git clone https://github.com/google/ios-webkit-debug-proxy.git
 cd ios-webkit-debug-proxy
 
@@ -35,13 +45,7 @@ sudo make install
 
 On Linux, you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.
 
-To verify that usbmuxd can list your attached device(s), ensure that `libimobiledevice-utils` is installed, or install it with:
-
-```console
-sudo apt-get install libimobiledevice-utils
-```
-
-and then run `idevice_id -l`
+To verify that usbmuxd can list your attached device(s), ensure that `libimobiledevice-utils` is installed and then run `idevice_id -l`.
 
 ### Start the simulator or device
 
