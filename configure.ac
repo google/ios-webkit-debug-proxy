@@ -17,20 +17,20 @@ PKG_PROG_PKG_CONFIG
 
 # Checks for libraries.
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
-PKG_CHECK_MODULES(libplist, libplist >= 1.12)
+PKG_CHECK_MODULES(libplist, libplist-2.0 >= 2.2.0)
 PKG_CHECK_MODULES(openssl, openssl >= 0.9.8)
-AC_CHECK_LIB([plist], [plist_to_xml],
+AC_CHECK_LIB([plist-2.0], [plist_to_xml],
              [ ], [AC_MSG_FAILURE([*** Unable to link with libplist])],
              [$libplist_LIBS])
 AC_CHECK_LIB([m], [log10])
-AC_CHECK_LIB([imobiledevice], [idevice_new],
+AC_CHECK_LIB([imobiledevice-1.0], [idevice_new],
              [ ], [AC_MSG_FAILURE([*** Unable to link with libimobiledevice])],
              [$libimobiledevice_LIBS])
 LT_INIT
 
 # Defines versions of required modules
 libimobiledevice_version=`$PKG_CONFIG --modversion libimobiledevice-1.0`
-libplist_version=`$PKG_CONFIG --modversion libplist`
+libplist_version=`$PKG_CONFIG --modversion libplist-2.0`
 
 AC_DEFINE_UNQUOTED([LIBIMOBILEDEVICE_VERSION], ["$libimobiledevice_version"], [ ])
 AC_DEFINE_UNQUOTED([LIBPLIST_VERSION], ["$libplist_version"], [ ])
