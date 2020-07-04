@@ -16,7 +16,7 @@ AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 
 # Checks for libraries.
-PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.0)
+PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.3.0)
 PKG_CHECK_MODULES(libplist, libplist-2.0 >= 2.2.0)
 PKG_CHECK_MODULES(openssl, openssl >= 0.9.8)
 AC_CHECK_LIB([plist-2.0], [plist_to_xml],
@@ -78,11 +78,6 @@ else
 fi
 
 AC_CHECK_FUNCS([memmove memset regcomp select socket strcasecmp strncasecmp strchr strdup strndup strrchr strstr strtol strcasestr getline])
-
-SAVE_CFLAGS=$CFLAGS
-CFLAGS="$CFLAGS $libimobiledevice_CFLAGS"
-AC_CHECK_DECL(idevice_connection_get_fd, [AC_DEFINE([HAVE_IDEVICE_CONNECTION_GET_FD], 1, [ ])], [], [#include <libimobiledevice/libimobiledevice.h>])
-CFLAGS=$SAVE_CFLAGS
 
 AC_CONFIG_FILES([Makefile src/Makefile include/Makefile examples/Makefile])
 

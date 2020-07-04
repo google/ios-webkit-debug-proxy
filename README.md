@@ -195,21 +195,11 @@ or
 
 > Could not connect to lockdownd, error code -\<number\>. Exiting.
 
-Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
-
-    brew update
-    brew uninstall --force libimobiledevice ios-webkit-debug-proxy usbmuxd
-    brew install --HEAD usbmuxd
-    brew install --HEAD libimobiledevice
-    brew install -s ios-webkit-debug-proxy
-
+Make sure you're using latest version of ios-webkit-debug-proxy
 
 ##### Inspectable pages list is empty for iOS >= 12.2
 
-Please upgrade usbmuxd to version from master
-
-    brew update
-    brew install --HEAD usbmuxd
+Make sure you're using latest version of ios-webkit-debug-proxy
 
 ##### Can not see Simulator
 
@@ -243,7 +233,6 @@ Google BSD license <https://developers.google.com/google-bsd-license>
 Copyright 2012 Google Inc.  <wrightt@google.com>
 
 The proxy uses the following open-source packages:
-   - [libplist 1.10](http://cgit.sukimashita.com/libplist.git)
-   - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
-   - [libimobiledevice 1.2.0](http://cgit.sukimashita.com/libimobiledevice.git)
-   - libimobiledevice 1.2.1 _if your target iOS10+_
+   - [libplist 2.2.0](http://cgit.sukimashita.com/libplist.git)
+   - [libusbmuxd 2.0.0](http://cgit.sukimashita.com/usbmuxd.git/)
+   - [libimobiledevice 1.3.0](http://cgit.sukimashita.com/libimobiledevice.git)
