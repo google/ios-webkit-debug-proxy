@@ -82,7 +82,7 @@ ios_webkit_debug_proxy can be used with many tools such as Chrome DevTools and S
 
 To use Chrome DevTools it's the recommendation to use the [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project, which has instructions on how to setup Chrome to remote debug iOS devices, much similar to Android debugging.
 
-The reason is that recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), which means that newer versions of Chrome DevTools aren't compatible with Safari.
+The reason is that in recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and [Webkit Inspector Protocol](https://github.com/WebKit/webkit/tree/master/Source/JavaScriptCore/inspector/protocol), which means that newer versions of Chrome DevTools aren't compatible with Safari.
 
 #### Safari Web Inspector
 You can use Safari Web Inspector extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
