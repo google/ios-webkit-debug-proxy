@@ -77,7 +77,7 @@ wi_status idevice_connection_get_ssl_session(idevice_connection_t connection,
       (sizeof(*connection) == sizeof(idevice_connection_private)) ?
       (idevice_connection_private *) connection : NULL);
 
-  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0) {
+  if (!c || c->data <= 0) {
     perror("Invalid idevice_connection struct. Please verify that "
         __FILE__ "'s idevice_connection_private matches your version of"
         " libimbiledevice/src/idevice.h");
@@ -110,7 +110,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   SSL *ssl_session = NULL;
 
   // get phone
-  if (idevice_new(&phone, device_id)) {
+  if (idevice_new_with_options(&phone, device_id, IDEVICE_LOOKUP_USBMUX | IDEVICE_LOOKUP_NETWORK)) {
     fprintf(stderr, "No device found, is it plugged in?\n");
     goto leave_cleanup;
   }
