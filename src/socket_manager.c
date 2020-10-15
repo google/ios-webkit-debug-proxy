@@ -386,22 +386,8 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   return ret;
 }
 
-sm_status sm_send(sm_t self, int fd, const char *data, size_t length, void* value) 
-{
-	IS_SSL_FD(fd)
-	{
-		uint32_t sent_bytes = 0;
-		if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
-		{
-			// wait 200 msec...
-			usleep(200 *1000); // SSL_ERROR_WANT_WRITE? - to do expose the SSL error by libimobiledevice hedaer...
-			if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
-				return SM_ERROR; // SSL_ERROR_SSL??? 
-			
-		}
-		return SM_SUCCESS; 
-	}
-			
+sm_status sm_send(sm_t self, int fd, const char *data, size_t length,
+    void* value) {
   sm_private_t my = self->private_state;
   sm_sendq_t sendq = (sm_sendq_t)ht_get_value(my->fd_to_sendq, HT_KEY(fd));
   const char *head = data;
@@ -588,12 +574,10 @@ void sm_resend(sm_t self, int fd) {
     sendq = nextq;
   }
 }
- 
-void sm_recv(sm_t self, int fd) 
-{
-    sm_private_t my = self->private_state;
-    my->curr_recv_fd = fd;
 
+void sm_recv(sm_t self, int fd) {
+  sm_private_t my = self->private_state;
+  my->curr_recv_fd = fd;
   while (1) {
 	ssize_t read_bytes = 0;
   	IS_SSL_FD(fd)
@@ -648,7 +632,6 @@ void sm_recv(sm_t self, int fd)
     }
   }
   my->curr_recv_fd = 0;
- 
 }
 
 int sm_select(sm_t self, int timeout_secs) {

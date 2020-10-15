@@ -28,12 +28,11 @@
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
-#include <libimobiledevice/service.h>
 
 #include "char_buffer.h"
 #include "idevice_ext.h"
 #include "webinspector.h"
-#include "socket_manager.h"
+
 
 #define WI_DEBUG 1
 
@@ -42,8 +41,6 @@
 
 // some arbitrarly limit, to catch bad packets
 #define MAX_BODY_LENGTH 1<<26
-
-extern idevice_connection_t connectionSSL;
 
 struct wi_private {
   bool partials_supported;
@@ -114,7 +111,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
   if (to_device_os_version &&
       !lockdownd_get_value(client, NULL, "ProductVersion", &node)) {
-    
+    int vers[3] = {0, 0, 0};
     char *s_version = NULL;
     plist_get_string_val(node, &s_version);
     if (s_version && sscanf(s_version, "%d.%d.%d",
@@ -140,17 +137,6 @@ int wi_connect(const char *device_id, char **to_device_id,
   if (idevice_connect(phone, service->port, &connection)) {
     perror("idevice_connect failed!");
     goto leave_cleanup;
-  }
-
-  if(vers[0]>=13) {
-	  service_client_t client_srv = (service_client_t)malloc(sizeof(struct service_client_private));
-	  client_srv->connection = connection;
-
-	  /* enable SSL if requested */
-	  if (service->ssl_enabled == 1){
-	  		    service_enable_ssl(client_srv);
-		  		connectionSSL = client_srv->connection;
-	  	  }
   }
 
   if (client) {
@@ -215,7 +201,7 @@ leave_cleanup:
 #endif
   // don't call usbmuxd_disconnect(fd)!
   //idevice_disconnect(connection);
-  //free(connection); // connectionSSL reuses - keep it...
+  free(connection);
   lockdownd_client_free(client);
   idevice_free(phone);
   return ret;
