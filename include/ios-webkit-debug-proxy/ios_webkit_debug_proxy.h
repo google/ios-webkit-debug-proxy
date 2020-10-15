@@ -68,7 +68,8 @@ struct iwdp_struct {
   // @param to_device_name optional selected device name
   // @result fd, or -1 for error
   int (*attach)(iwdp_t iwdp, const char *device_id, char **to_device_id,
-                char **to_device_name, int *to_device_os_version);
+                char **to_device_name, int *to_device_os_version,
+                void **to_ssl_session);
 
   // Select the port-scan range for the browser listener.
   // @param to_port preferred port, e.g. 9227.  If a device is re-attached
@@ -90,8 +91,8 @@ struct iwdp_struct {
   iwdp_status (*send)(iwdp_t self, int fd, const char *data, size_t length);
 
   // Add a fd that was returned from attach/listen/connect.
-  iwdp_status (*add_fd)(iwdp_t self, int fd, void *value,
-                        bool is_server);
+  iwdp_status (*add_fd)(iwdp_t self, int fd, void *ssl_session, void *value,
+      bool is_server);
 
   iwdp_status (*remove_fd)(iwdp_t self, int fd);
 

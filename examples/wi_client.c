@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   // connect to device
   char *device_id2 = NULL;
   int recv_timeout = 1000;
-  int fd = wi_connect(device_id, &device_id2, NULL, NULL, recv_timeout);
+  int fd = wi_connect(device_id, &device_id2, NULL, NULL, NULL, recv_timeout);
   if (fd < 0) {
     return -1;
   }

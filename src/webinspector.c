@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #endif
 
+#include <openssl/ssl.h>
+
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <libimobiledevice/lockdown.h>
@@ -51,45 +53,52 @@ struct wi_private {
 // CONNECT
 //
 
-#ifndef HAVE_IDEVICE_CONNECTION_GET_FD
-// based on libimobiledevice/src/idevice.h
-enum connection_type {
-  CONNECTION_USBMUXD = 1
-};
+// based on latest libimobiledevice/src/idevice.h
 struct idevice_connection_private {
-  char *udid;  // added in v1.1.6
-  enum connection_type type;
+  idevice_t device;
+  enum idevice_connection_type type;
   void *data;
   void *ssl_data;
 };
 
-wi_status idevice_connection_get_fd(idevice_connection_t connection,
-    int *to_fd) {
-  if (!connection || !to_fd) {
+struct ssl_data_private {
+	SSL *session;
+	SSL_CTX *ctx;
+};
+typedef struct ssl_data_private *ssl_data_t;
+
+wi_status idevice_connection_get_ssl_session(idevice_connection_t connection,
+    SSL **to_session) {
+  if (!connection || !to_session) {
     return WI_ERROR;
   }
+
   idevice_connection_private *c = (
       (sizeof(*connection) == sizeof(idevice_connection_private)) ?
       (idevice_connection_private *) connection : NULL);
-  if (!c || c->type != CONNECTION_USBMUXD || c->data <= 0 || c->ssl_data) {
-    perror("Invalid idevice_connection struct.  Please verify that "
+
+  if (!c || c->data <= 0) {
+    perror("Invalid idevice_connection struct. Please verify that "
         __FILE__ "'s idevice_connection_private matches your version of"
         " libimbiledevice/src/idevice.h");
     return WI_ERROR;
   }
-  int fd = (int)(long)c->data;
-  struct stat fd_stat;
-  if (fstat(fd, &fd_stat) < 0 || !S_ISSOCK(fd_stat.st_mode)) {
-    perror("idevice_connection fd is not a socket?");
+
+  ssl_data_t sd = (ssl_data_t)c->ssl_data;
+  if (!sd || !sd->session) {
+    perror("Invalid ssl_data struct. Make sure libimobiledevice was compiled"
+        " with openssl. Otherwise please verify that " __FILE__ "'s ssl_data"
+        " matches your version of libimbiledevice/src/idevice.h");
     return WI_ERROR;
   }
-  *to_fd = fd;
+
+  *to_session = sd->session;
   return WI_SUCCESS;
 }
-#endif
 
 int wi_connect(const char *device_id, char **to_device_id,
-    char **to_device_name, int *to_device_os_version, int recv_timeout) {
+    char **to_device_name, int *to_device_os_version,
+    void **to_ssl_session, int recv_timeout) {
   int ret = -1;
 
   idevice_t phone = NULL;
@@ -98,9 +107,10 @@ int wi_connect(const char *device_id, char **to_device_id,
   lockdownd_client_t client = NULL;
   idevice_connection_t connection = NULL;
   int fd = -1;
+  SSL *ssl_session = NULL;
 
   // get phone
-  if (idevice_new(&phone, device_id)) {
+  if (idevice_new_with_options(&phone, device_id, IDEVICE_LOOKUP_USBMUX | IDEVICE_LOOKUP_NETWORK)) {
     fprintf(stderr, "No device found, is it plugged in?\n");
     goto leave_cleanup;
   }
@@ -154,6 +164,16 @@ int wi_connect(const char *device_id, char **to_device_id,
   if (idevice_connect(phone, service->port, &connection)) {
     perror("idevice_connect failed!");
     goto leave_cleanup;
+  }
+
+  // enable ssl
+  if (service->ssl_enabled == 1) {
+    if (!to_ssl_session || idevice_connection_enable_ssl(connection) ||
+        idevice_connection_get_ssl_session(connection, &ssl_session)) {
+      perror("ssl connection failed!");
+      goto leave_cleanup;
+    }
+    *to_ssl_session = ssl_session;
   }
 
   if (client) {

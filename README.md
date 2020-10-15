@@ -24,9 +24,19 @@ scoop install ios-webkit-debug-proxy
 
 On Linux:
 
+Install dependencies available in apt repository:
 ```console
-sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev
+sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libtool libssl-dev
+```
 
+Build and install dependencies that require more recent versions:
+- [libmobiledevice](https://github.com/libimobiledevice/libimobiledevice)
+- [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd)
+- [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
+- [libplist](https://github.com/libimobiledevice/libplist)
+
+Build and install `ios-webkit-debug-proxy`:
+```console
 git clone https://github.com/google/ios-webkit-debug-proxy.git
 cd ios-webkit-debug-proxy
 
@@ -39,13 +49,7 @@ sudo make install
 
 On Linux, you must run the `usbmuxd` daemon.  The above install adds a /lib/udev rule to start the daemon whenever a device is attached.
 
-To verify that usbmuxd can list your attached device(s), ensure that `libimobiledevice-utils` is installed, or install it with:
-
-```console
-sudo apt-get install libimobiledevice-utils
-```
-
-and then run `idevice_id -l`
+To verify that usbmuxd can list your attached device(s), ensure that `libimobiledevice-utils` is installed and then run `idevice_id -l`.
 
 ### Start the simulator or device
 
@@ -82,7 +86,7 @@ ios_webkit_debug_proxy can be used with many tools such as Chrome DevTools and S
 
 To use Chrome DevTools it's the recommendation to use the [RemoteDebug/remotedebug-ios-webkit-adapter](https://github.com/RemoteDebug/remotedebug-ios-webkit-adapter) project, which has instructions on how to setup Chrome to remote debug iOS devices, much similar to Android debugging.
 
-The reason is that recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and Apple's [Remote Web Inspector service](https://developer.apple.com/technologies/safari/developer-tools.html), which means that newer versions of Chrome DevTools aren't compatible with Safari.
+The reason is that in recent versions of Chrome and Safari there're major discrepancies between [Chrome Remote Debugging Protocol](https://developer.chrome.com/devtools/docs/debugger-protocol) and [Webkit Inspector Protocol](https://github.com/WebKit/webkit/tree/master/Source/JavaScriptCore/inspector/protocol), which means that newer versions of Chrome DevTools aren't compatible with Safari.
 
 #### Safari Web Inspector
 You can use Safari Web Inspector extracted from Webkit sources, e.g. [artygus/webkit-webinspector](https://github.com/artygus/webkit-webinspector).
@@ -172,6 +176,10 @@ ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.s
 
 Run `sudo ldconfig`
 
+##### ssl sendq retry failed: Undefined error: 0
+
+should only happen with versions > 1.8.5, make sure ios-webkit-debug-proxy is built with same version of libssl that libimobildevice was built with
+
 ##### idevice_id not found
 
 The `idevice_id` executable may be found as part of the libimobiledevice-utils package.
@@ -191,21 +199,11 @@ or
 
 > Could not connect to lockdownd, error code -\<number\>. Exiting.
 
-Please upgrade libimobiledevice to version from master and rebuild ios-webkit-debug-proxy. Upcoming 1.2.1 has many fixes but not marked for release just yet. If you're on OS X:
-
-    brew update
-    brew uninstall --force libimobiledevice ios-webkit-debug-proxy usbmuxd
-    brew install --HEAD usbmuxd
-    brew install --HEAD libimobiledevice
-    brew install -s ios-webkit-debug-proxy
-
+Make sure you're using latest version of ios-webkit-debug-proxy
 
 ##### Inspectable pages list is empty for iOS >= 12.2
 
-Please upgrade usbmuxd to version from master
-
-    brew update
-    brew install --HEAD usbmuxd
+Make sure you're using latest version of ios-webkit-debug-proxy
 
 ##### Can not see Simulator
 
@@ -239,7 +237,6 @@ Google BSD license <https://developers.google.com/google-bsd-license>
 Copyright 2012 Google Inc.  <wrightt@google.com>
 
 The proxy uses the following open-source packages:
-   - [libplist 1.10](http://cgit.sukimashita.com/libplist.git)
-   - [libusbmuxd 1.0.8](http://cgit.sukimashita.com/usbmuxd.git/)
-   - [libimobiledevice 1.2.0](http://cgit.sukimashita.com/libimobiledevice.git)
-   - libimobiledevice 1.2.1 _if your target iOS10+_
+   - [libplist 2.2.0](http://cgit.sukimashita.com/libplist.git)
+   - [libusbmuxd 2.0.0](http://cgit.sukimashita.com/usbmuxd.git/)
+   - [libimobiledevice 1.3.0](http://cgit.sukimashita.com/libimobiledevice.git)
