@@ -66,7 +66,6 @@ int main(int argc, char** argv) {
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
 
-
 #ifdef WIN32
   WSADATA wsa_data;
   int res = WSAStartup(MAKEWORD(2,2), &wsa_data);
@@ -112,9 +111,9 @@ int iwdpm_subscribe(iwdp_t iwdp) {
   return dl_connect(-1);
 }
 int iwdpm_attach(iwdp_t iwdp, const char *device_id, char **to_device_id,
-    char **to_device_name, int *to_device_os_version) {
+    char **to_device_name, int *to_device_os_version, void **to_ssl_session) {
   return wi_connect(device_id, to_device_id, to_device_name,
-      to_device_os_version, -1);
+      to_device_os_version, to_ssl_session, -1);
 }
 iwdp_status iwdpm_select_port(iwdp_t iwdp, const char *device_id,
     int *to_port, int *to_min_port, int *to_max_port) {
@@ -147,9 +146,10 @@ iwdp_status iwdpm_send(iwdp_t iwdp, int fd, const char *data, size_t length) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
   return sm->send(sm, fd, data, length, NULL);
 }
-iwdp_status iwdpm_add_fd(iwdp_t iwdp, int fd, void *value, bool is_server) {
+iwdp_status iwdpm_add_fd(iwdp_t iwdp, int fd, void *ssl_session, void *value,
+    bool is_server) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;
-  return sm->add_fd(sm, fd, value, is_server);
+  return sm->add_fd(sm, fd, ssl_session, value, is_server);
 }
 iwdp_status iwdpm_remove_fd(iwdp_t iwdp, int fd) {
   sm_t sm = ((iwdpm_t)iwdp->state)->sm;

@@ -14,7 +14,7 @@
     * `pacman -S mingw-w64-i686-gcc mingw-w64-i686-libtool mingw-w64-i686-pkg-config`
 
 7. Install additional tools
-    * `pacman -S automake-wrapper autoconf make unzip`
+    * `pacman -S automake-wrapper autoconf make unzip patch`
 
 8. Restart MSYS **MingGW 32-Bit** terminal
 
@@ -23,9 +23,9 @@
 
 10. Download projects
     * `wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_1.zip -O openssl.zip`
-    * `wget https://github.com/libimobiledevice/libplist/archive/2.0.0.zip -O libplist.zip`
-    * `wget https://github.com/libimobiledevice/libusbmuxd/archive/b097ea39f391f5c2c83d8f4687843a3634f7cd54.zip -O libusbmuxd.zip`
-    * `wget https://github.com/libimobiledevice/libimobiledevice/archive/a9e69b1252e5918b6d8ada1209ccefde301cfa26.zip -O libimobiledevice.zip`
+    * `wget https://github.com/libimobiledevice/libplist/archive/2.2.0.zip -O libplist.zip`
+    * `wget https://github.com/libimobiledevice/libusbmuxd/archive/2.0.2.zip -O libusbmuxd.zip`
+    * `wget https://github.com/libimobiledevice/libimobiledevice/archive/1.3.0.zip -O libimobiledevice.zip`
     * `wget https://github.com/OutSystems/ios-webkit-debug-proxy/archive/outsystems.zip -O ios-webkit-debug-proxy.zip`
     * `wget https://ftp.pcre.org/pub/pcre/pcre-8.43.zip -O pcre.zip`
 
@@ -38,16 +38,18 @@
     * `unzip pcre.zip`
 
 12. Go to **libplist** folder
-    * `cd /home/libplist-2.0.0/`
+    * `cd /home/libplist-2.2.0/`
 
 13. Build library
     * `./autogen.sh --without-cython`
     * `make install -j4`
 
 14. Go to **libusbmuxd** folder
-    * `cd /home/libusbmuxd-b097ea39f391f5c2c83d8f4687843a3634f7cd54/`
+    * `cd /home/libusbmuxd-2.0.2/`
 
-15. Build library
+15. Build library (apply workaround for build error: https://github.com/libimobiledevice/libusbmuxd/issues/95)
+	* `wget https://raw.githubusercontent.com/Orbif/libimobiledevice-patchs/master/libimobiledevice-socket-mingw-compatibility.patch`
+	* `patch -p 1 < libimobiledevice-socket-mingw-compatibility.patch`
     * `./autogen.sh`
     * `make install -j4`
 
@@ -60,9 +62,11 @@
     * `make install_sw -j4`
 
 18. Go to **libimobiledevice** folder
-    * `cd /home/libimobiledevice-a9e69b1252e5918b6d8ada1209ccefde301cfa26/`
+    * `cd /home/libimobiledevice-1.3.0/`
 
-19. Build library
+19. Build library (apply workaround for build error: https://github.com/libimobiledevice/libusbmuxd/issues/95)
+	* `wget https://raw.githubusercontent.com/Orbif/libimobiledevice-patchs/master/libimobiledevice-socket-mingw-compatibility.patch`
+	* `patch -p 1 < libimobiledevice-socket-mingw-compatibility.patch`
     * `./autogen.sh --without-cython`
     * `make install -j4`
 
@@ -133,14 +137,16 @@
     * `make -j4`
 
 25. Use **exe** generated in **.libs** folder, and get all other necessary **dll’s**
-    * `C:\msys32\home\ios-webkit-debug-proxy-outsystems\src\.libs\ios_webkit_debug_proxy.exe`
-    * `C:\msys32\home\openssl-OpenSSL_1_1_1\libcrypto-1_1.dll`
-    * `C:\msys32\home\openssl-OpenSSL_1_1_1\libssl-1_1.dll`
-    * `C:\msys32\home\libimobiledevice-a9e69b1252e5918b6d8ada1209ccefde301cfa26\src\.libs\libimobiledevice.dll`
-    * `C:\msys32\home\pcre-8.43\.libs\libpcre-1.dll`
-    * `C:\msys32\home\pcre-8.43\.libs\libpcreposix-0.dll`
-    * `C:\msys32\home\libplist-2.0.0\src\.libs\libplist.dll`
-    * `C:\msys32\home\libusbmuxd-b097ea39f391f5c2c83d8f4687843a3634f7cd54\src\.libs\libusbmuxd.dll`
+    * `C:\msys64\home\ios-webkit-debug-proxy-outsystems\src\.libs\ios_webkit_debug_proxy.exe`
+    * `C:\msys64\home\openssl-OpenSSL_1_1_1\libcrypto-1_1.dll`
+    * `C:\msys64\home\openssl-OpenSSL_1_1_1\libssl-1_1.dll`
+    * `C:\msys64\home\libimobiledevice-1.3.0\src\.libs\libimobiledevice-1.0.dll`
+    * `C:\msys64\home\pcre-8.43\.libs\libpcre-1.dll`
+    * `C:\msys64\home\pcre-8.43\.libs\libpcreposix-0.dll`
+    * `C:\msys64\home\libplist-2.2.0\src\.libs\libplist-2.0.dll`
+    * `C:\msys64\home\libusbmuxd-2.0.2\src\.libs\libusbmuxd-2.0.dll`
+    * `C:\msys64\mingw32\bin\libgcc_s_dw2-1.dll`
+    * `C:\msys64\mingw32\bin\libwinpthread-1.dll`
 
 ---
 

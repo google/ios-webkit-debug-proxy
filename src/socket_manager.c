@@ -26,15 +26,14 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <pthread.h>
-#include <time.h>
 #endif
+
+#include <openssl/ssl.h>
 
 #include "char_buffer.h"
 #include "socket_manager.h"
 #include "hash_table.h"
 #include "strndup.h"
-
 
 #if defined(__MACH__) || defined(WIN32)
 #define SIZEOF_FD_SET sizeof(struct fd_set)
@@ -43,9 +42,6 @@
 #define SIZEOF_FD_SET sizeof(fd_set)
 #define RECV_FLAGS MSG_DONTWAIT
 #endif
-
-extern idevice_connection_t connectionSSL;
-#define IS_SSL_FD(fd) if(connectionSSL!=NULL && (fd == (int)(long)connectionSSL->data))
 
 struct sm_private {
   struct timeval timeout;
@@ -56,6 +52,8 @@ struct sm_private {
   fd_set *server_fds; // can on_accept, i.e. "is_server"
   fd_set *send_fds;   // blocked sends, same as fd_to_sendq.keys
   fd_set *recv_fds;   // can recv, same as all_fds - sendq.recv_fd's
+  // fd to ssl_session
+  ht_t fd_to_ssl;
   // fd to on_* callback
   ht_t fd_to_value;
   // fd to blocked sm_sendq_t, often empty
@@ -307,13 +305,17 @@ sm_status sm_on_debug(sm_t self, const char *format, ...) {
   return SM_SUCCESS;
 }
 
-sm_status sm_add_fd(sm_t self, int fd, void *value, bool is_server) {
+sm_status sm_add_fd(sm_t self, int fd, void *ssl_session, void *value,
+    bool is_server) {
   sm_private_t my = self->private_state;
   if (FD_ISSET(fd, my->all_fds)) {
     return SM_ERROR;
   }
   if (ht_put(my->fd_to_value, HT_KEY(fd), value)) {
     // The above FD_ISSET(..master..) should prevent this
+    return SM_ERROR;
+  }
+  if (ssl_session != NULL && ht_put(my->fd_to_ssl, HT_KEY(fd), ssl_session)) {
     return SM_ERROR;
   }
   // is_server == getsockopt(..., SO_ACCEPTCONN, ...)?
@@ -338,6 +340,7 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   if (!FD_ISSET(fd, my->all_fds)) {
     return SM_ERROR;
   }
+  ht_put(my->fd_to_ssl, HT_KEY(fd), NULL);
   void *value = ht_put(my->fd_to_value, HT_KEY(fd), NULL);
   bool is_server = FD_ISSET(fd, my->server_fds);
   sm_on_debug(self, "ss.remove%s_fd(%d)", (is_server ? "_server" : ""), fd);
@@ -379,41 +382,42 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   return ret;
 }
 
-sm_status sm_send(sm_t self, int fd, const char *data, size_t length, void* value) 
-{
-	IS_SSL_FD(fd)
-	{
-		uint32_t sent_bytes = 0;
-		if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
-		{
-			// wait 200 msec...
-			usleep(200 *1000); // SSL_ERROR_WANT_WRITE? - to do expose the SSL error by libimobiledevice hedaer...
-			if( idevice_connection_send(connectionSSL, data, length, &sent_bytes) !=  IDEVICE_E_SUCCESS)
-				return SM_ERROR; // SSL_ERROR_SSL??? 
-			
-		}
-		return SM_SUCCESS; 
-	}
-			
+sm_status sm_send(sm_t self, int fd, const char *data, size_t length,
+    void* value) {
   sm_private_t my = self->private_state;
   sm_sendq_t sendq = (sm_sendq_t)ht_get_value(my->fd_to_sendq, HT_KEY(fd));
   const char *head = data;
   const char *tail = data + length;
   if (!sendq) {
+    void *ssl_session = ht_get_value(my->fd_to_ssl, HT_KEY(fd));
     // send as much as we can without blocking
     while (1) {
-      ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
-      if (sent_bytes <= 0) {
+      ssize_t sent_bytes;
+      if (ssl_session == NULL) {
+        sent_bytes = send(fd, (void*)head, (tail - head), 0);
+        if (sent_bytes <= 0) {
 #ifdef WIN32
-        if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
+          if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
 #else
-        if (sent_bytes && errno != EWOULDBLOCK) {
+          if (sent_bytes && errno != EWOULDBLOCK) {
 #endif
-          sm_on_debug(self, "ss.failed fd=%d", fd);
-          perror("send failed");
-          return SM_ERROR;
+            sm_on_debug(self, "ss.failed fd=%d", fd);
+            perror("send failed");
+            return SM_ERROR;
+          }
+          break;
         }
-        break;
+      } else {
+        sent_bytes = SSL_write((SSL *)ssl_session, (void*)head, tail - head);
+        if (sent_bytes <= 0) {
+          if (SSL_get_error(ssl_session, sent_bytes) != SSL_ERROR_WANT_READ &&
+              SSL_get_error(ssl_session, sent_bytes) != SSL_ERROR_WANT_WRITE) {
+            sm_on_debug(self, "ss.failed fd=%d", fd);
+            perror("ssl send failed");
+            return SM_ERROR;
+          }
+          break;
+        }
       }
       head += sent_bytes;
       if (head >= tail) {
@@ -474,7 +478,7 @@ void sm_accept(sm_t self, int fd) {
 #else
      close(new_fd);
 #endif
-    } else if (self->add_fd(self, new_fd, new_value, false)) {
+    } else if (self->add_fd(self, new_fd, NULL, new_value, false)) {
       self->on_close(self, new_fd, new_value, false);
 #ifdef WIN32
      closesocket(new_fd);
@@ -488,6 +492,7 @@ void sm_accept(sm_t self, int fd) {
 void sm_resend(sm_t self, int fd) {
   sm_private_t my = self->private_state;
   sm_sendq_t sendq = ht_get_value(my->fd_to_sendq, HT_KEY(fd));
+  void *ssl_session = ht_get_value(my->fd_to_ssl, HT_KEY(fd));
   while (sendq) {
     char *head = sendq->head;
     char *tail = sendq->tail;
@@ -495,20 +500,34 @@ void sm_resend(sm_t self, int fd) {
     sm_on_debug(self, "ss.sendq<%p> resume send to fd=%d len=%zd", sendq, fd,
         (tail - head));
     while (head < tail) {
-      ssize_t sent_bytes = send(fd, (void*)head, (tail - head), 0);
-      if (sent_bytes <= 0) {
+      ssize_t sent_bytes;
+      if (ssl_session == NULL) {
+        sent_bytes = send(fd, (void*)head, (tail - head), 0);
+        if (sent_bytes <= 0) {
 #ifdef WIN32
-        if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
-          fprintf(stderr, "sendq retry failed with error: %d\n",
-              WSAGetLastError());
+          if (sent_bytes && WSAGetLastError() != WSAEWOULDBLOCK) {
+            fprintf(stderr, "sendq retry failed with error: %d\n",
+                WSAGetLastError());
 #else
-        if (sent_bytes && errno != EWOULDBLOCK) {
-          perror("sendq retry failed");
+          if (sent_bytes && errno != EWOULDBLOCK) {
+            perror("sendq retry failed");
 #endif
-          self->remove_fd(self, fd);
-          return;
+            self->remove_fd(self, fd);
+            return;
+          }
+          break;
         }
-        break;
+      } else {
+        sent_bytes = SSL_write((SSL *)ssl_session, (void*)head, tail - head);
+        if (sent_bytes <= 0) {
+          if (SSL_get_error(ssl_session, sent_bytes) != SSL_ERROR_WANT_READ &&
+              SSL_get_error(ssl_session, sent_bytes) != SSL_ERROR_WANT_WRITE) {
+            perror("ssl sendq retry failed");
+            self->remove_fd(self, fd);
+            return;
+          }
+          break;
+        }
       }
       head += sent_bytes;
     }
@@ -551,38 +570,37 @@ void sm_resend(sm_t self, int fd) {
     sendq = nextq;
   }
 }
- 
-void sm_recv(sm_t self, int fd) 
-{
-    sm_private_t my = self->private_state;
-    my->curr_recv_fd = fd;
 
+void sm_recv(sm_t self, int fd) {
+  sm_private_t my = self->private_state;
+  my->curr_recv_fd = fd;
+  void *ssl_session = ht_get_value(my->fd_to_ssl, HT_KEY(fd));
   while (1) {
-	ssize_t read_bytes = 0;
-  	IS_SSL_FD(fd)
-  	{
-		idevice_error_t error = idevice_connection_receive(connectionSSL, 
-															my->tmp_buf, 
-															my->tmp_buf_length, 
-															(uint32_t*)&read_bytes);
-		if (error != IDEVICE_E_SUCCESS)
-			break; // SSL_ERROR_WANT_READ ?
-  	}
-	else {
-    	read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
-	}
-    if (read_bytes < 0) 
-	{
+    ssize_t read_bytes;
+    if (ssl_session == NULL) {
+      read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
+      if (read_bytes < 0) {
 #ifdef WIN32
-      if (WSAGetLastError() != WSAEWOULDBLOCK) {
-        fprintf(stderr, "recv failed with error %d\n", WSAGetLastError());
+        if (WSAGetLastError() != WSAEWOULDBLOCK) {
+          fprintf(stderr, "recv failed with error %d\n", WSAGetLastError());
 #else
-      if (errno != EWOULDBLOCK) {
-        perror("recv failed");
+        if (errno != EWOULDBLOCK) {
+          perror("recv failed");
 #endif
-        self->remove_fd(self, fd);
+          self->remove_fd(self, fd);
+        }
+        break;
       }
-      break;
+    } else {
+      read_bytes = SSL_read((SSL *)ssl_session, my->tmp_buf, my->tmp_buf_length);
+      if (read_bytes <= 0) {
+        if (SSL_get_error(ssl_session, read_bytes) != SSL_ERROR_WANT_READ &&
+            SSL_get_error(ssl_session, read_bytes) != SSL_ERROR_WANT_WRITE) {
+          perror("ssl recv failed");
+          self->remove_fd(self, fd);
+        }
+        break;
+      }
     }
     sm_on_debug(self, "ss.recv fd=%d len=%zd", fd, read_bytes);
     void *value = ht_get_value(my->fd_to_value, HT_KEY(fd));
@@ -593,7 +611,6 @@ void sm_recv(sm_t self, int fd)
     }
   }
   my->curr_recv_fd = 0;
- 
 }
 
 int sm_select(sm_t self, int timeout_secs) {
@@ -684,6 +701,7 @@ void sm_private_free(sm_private_t my) {
     free(my->tmp_send_fds);
     free(my->tmp_recv_fds);
     free(my->tmp_fail_fds);
+    ht_free(my->fd_to_ssl);
     ht_free(my->fd_to_value);
     ht_free(my->fd_to_sendq);
     free(my->tmp_buf);
@@ -705,13 +723,14 @@ sm_private_t sm_private_new(size_t buf_length) {
   my->tmp_send_fds = (fd_set *)malloc(SIZEOF_FD_SET);
   my->tmp_recv_fds = (fd_set *)malloc(SIZEOF_FD_SET);
   my->tmp_fail_fds = (fd_set *)malloc(SIZEOF_FD_SET);
+  my->fd_to_ssl = ht_new(HT_INT_KEYS);
   my->fd_to_value = ht_new(HT_INT_KEYS);
   my->fd_to_sendq = ht_new(HT_INT_KEYS);
   my->tmp_buf = (char *)calloc(buf_length, sizeof(char *));
   if (!my->tmp_buf || !my->all_fds || !my->server_fds ||
       !my->send_fds || !my->recv_fds ||
       !my->tmp_send_fds || !my->tmp_recv_fds || !my->tmp_fail_fds ||
-      !my->fd_to_value || !my->fd_to_sendq) {
+      !my->fd_to_ssl || !my->fd_to_value || !my->fd_to_sendq) {
     sm_private_free(my);
     return NULL;
   }

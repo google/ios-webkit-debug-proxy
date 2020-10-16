@@ -512,7 +512,7 @@ rpc_status rpc_recv_msg(rpc_t self, const char *selector, const plist_t args) {
     if (!rpc_recv_applicationUpdated(self, args)) {
       return RPC_SUCCESS;
     }
-  } else if (!strcmp(selector, "_rpc_reportConnectedDriverList:")) {
+  } else if (!strcmp(selector, "_rpc_reportConnectedDriverList:") || !strcmp(selector, "_rpc_reportCurrentState:")) {
     return RPC_SUCCESS;
   }
 

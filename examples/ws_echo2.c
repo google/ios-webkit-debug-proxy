@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
   my_sm->port = port;
   //sm->state = my_sm; // optional
 
-  sm->add_fd(sm, s_fd, my_sm, true);
+  sm->add_fd(sm, s_fd, NULL, my_sm, true);
 
   int ret = 0;
   while (!quit_flag) {
