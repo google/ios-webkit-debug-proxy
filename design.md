@@ -5,7 +5,7 @@ Copyright 2012 Google Inc.  <wrightt@google.com>
 iOS WebKit Debug Proxy Design
 =============================
 
-See the [README.md](README) for an overview.
+See the [README.md](README.md) for an overview.
 
 Source
 ------
