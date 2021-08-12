@@ -29,7 +29,7 @@ sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev 
 ```
 
 Build and install dependencies that require more recent versions:
-- [libmobiledevice](https://github.com/libimobiledevice/libimobiledevice)
+- [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice)
 - [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd)
 - [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
 - [libplist](https://github.com/libimobiledevice/libplist)
