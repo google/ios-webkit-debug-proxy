@@ -1,0 +1,180 @@
+#ios_debug_proxy pipeline for getting libraries and binary
+
+trigger:
+- outsystems
+
+pool:
+  vmImage: 'macOS-latest'
+
+pr: none
+variables:
+- name: MAC_exportLib 
+  value: /Users/runner/exportedLibs.tar
+
+steps:
+####################################################################################################################
+# START IOS_DEBUG_PROXY
+####################################################################################################################
+###################
+# Checking architecture and Homebrew
+###################
+- task: CmdLine@2 
+  displayName: '✅ Check architecture and Homebrew'
+  inputs:
+      script: |
+          arch
+          brew -v  
+###################
+# Creating necessary directory structure
+################### 
+- task: CmdLine@2 
+  displayName: '📁 Create directories'
+  inputs:
+      script: |
+          mkdir ~/build_ios_proxy
+          mkdir ~/build_ios_proxy/install_folder
+          mkdir ~/build_ios_proxy/bundle
+          cd ~/build_ios_proxy
+###################
+# Homebrew and additional tools
+################### 
+- task: CmdLine@2 
+  displayName: '🛠️ Add Homebrew to PATH  and install additional tools'
+  inputs:
+      script: |
+          export PATH="$HOME/build_ios_proxy/homebrew/bin:$PATH"gi
+          brew install autoconf automake libtool pkg-config
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+###################
+# Download projects
+################### 
+- task: CmdLine@2 
+  displayName: '📥 Download projects'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy
+          curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1.zip -o openssl.zip
+          curl -L https://github.com/libimobiledevice/libplist/archive/2.2.0.zip -o libplist.zip
+          curl -L https://github.com/libimobiledevice/libusbmuxd/archive/2.0.2.zip -o libusbmuxd.zip
+          curl -L https://github.com/libimobiledevice/libimobiledevice/archive/1.3.0.zip -o libimobiledevice.zip
+          curl -L https://github.com/OutSystems/ios-webkit-debug-proxy/archive/outsystems.zip -o ios-webkit-debug-proxy.zip
+          curl -L https://ftp.pcre.org/pub/pcre/pcre-8.43.zip -o pcre.zip
+          ls -l
+###################
+# Extract projects
+################### 
+- task: CmdLine@2 
+  displayName: 'Extract projects'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy
+          unzip openssl.zip
+          unzip libplist.zip
+          unzip libusbmuxd.zip
+          unzip libimobiledevice.zip
+          unzip ios-webkit-debug-proxy.zip
+          unzip pcre.zip
+          pwd
+          ls -l
+###################
+# Installation of necessary builds
+################### 
+- task: CmdLine@2 
+  displayName: '📦 liblist build'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy/libplist-2.2.0/
+          ./autogen.sh --without-cython --prefix=$HOME/build_ios_proxy/install_folder
+          make install -j4
+- task: CmdLine@2 
+  displayName: '📦 libusbmuxd build'
+  inputs:
+      script: |
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+          cd ~/build_ios_proxy/libusbmuxd-2.0.2/
+          ./autogen.sh --prefix=$HOME/build_ios_proxy/install_folder
+          make install -j4
+- task: CmdLine@2 
+  displayName: '📦 openssl build'
+  inputs:
+      script: |
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+          unset SYSTEM
+          cd ~/build_ios_proxy/openssl-OpenSSL_1_1_1
+          ./config --prefix=$HOME/build_ios_proxy/install_folder no-idea no-mdc2 no-rc5 shared
+          make -j4
+          make install_sw -j4
+- task: CmdLine@2 
+  displayName: '📦 libimobiledevice build'
+  inputs:
+      script: |
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+          cd ~/build_ios_proxy/libimobiledevice-1.3.0/
+          ./autogen.sh --without-cython --prefix=$HOME/build_ios_proxy/install_folder
+          make install -j4                    
+- task: CmdLine@2 
+  displayName: '📦 pcre build'
+  inputs:
+      script: |
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+          cd ~/build_ios_proxy/pcre-8.43/
+          ./configure --prefix=$HOME/build_ios_proxy/install_folder
+          make install -j4  
+- task: CmdLine@2 
+  displayName: '📦 build_ios_proxy build'
+  inputs:
+      script: |
+          export PKG_CONFIG_PATH="$HOME/build_ios_proxy/install_folder/lib/pkgconfig"
+          cd ~/build_ios_proxy/ios-webkit-debug-proxy-outsystems/
+          ./autogen.sh --prefix=$HOME/build_ios_proxy/install_folder
+          make -j4
+###################
+# Copy ios_webkit_debug_proxy generated in src folder, and get all other necessary dylib
+################### 
+- task: CmdLine@2 
+  displayName: 'Copy ios_webkit_debug_proxy'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy/bundle 
+          cp ~/build_ios_proxy/ios-webkit-debug-proxy-outsystems/src/ios_webkit_debug_proxy .
+          cp ~/build_ios_proxy/install_folder/lib/libcrypto.1.1.dylib .
+          cp ~/build_ios_proxy/install_folder/lib/libimobiledevice-1.0.6.dylib .
+          cp ~/build_ios_proxy/install_folder/lib/libplist-2.0.3.dylib .
+          cp ~/build_ios_proxy/install_folder/lib/libssl.1.1.dylib .
+          cp ~/build_ios_proxy/install_folder/lib/libusbmuxd-2.0.6.dylib .
+###################
+# Change binary files to look for dependencies on the executable's folde
+################### 
+- task: CmdLine@2 
+  displayName: 'Change binary files'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy/bundle
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libimobiledevice-1.0.6.dylib @executable_path/libimobiledevice-1.0.6.dylib ios_webkit_debug_proxy
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libusbmuxd-2.0.6.dylib @executable_path/libusbmuxd-2.0.6.dylib ios_webkit_debug_proxy
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libplist-2.0.3.dylib @executable_path/libplist-2.0.3.dylib ios_webkit_debug_proxy
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libssl.1.1.dylib @executable_path/libssl.1.1.dylib ios_webkit_debug_proxy
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libcrypto.1.1.dylib @executable_path/libcrypto.1.1.dylib ios_webkit_debug_proxy
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libssl.1.1.dylib @executable_path/libssl.1.1.dylib libimobiledevice-1.0.6.dylib
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libcrypto.1.1.dylib @executable_path/libcrypto.1.1.dylib libimobiledevice-1.0.6.dylib
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libusbmuxd-2.0.6.dylib @executable_path/libusbmuxd-2.0.6.dylib libimobiledevice-1.0.6.dylib
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libplist-2.0.3.dylib @executable_path/libplist-2.0.3.dylib libimobiledevice-1.0.6.dylib
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libcrypto.1.1.dylib @executable_path/libcrypto.1.1.dylib libssl.1.1.dylib
+          install_name_tool -change $HOME/build_ios_proxy/install_folder/lib/libplist-2.0.3.dylib @executable_path/libplist-2.0.3.dylib libusbmuxd-2.0.6.dylib
+###################
+# Archive the necessary files to export as an artifact
+################### 
+- task: CmdLine@2 
+  displayName: 'Find and archive files'
+  inputs:
+      script: |
+          cd ~/build_ios_proxy/bundle
+          tar -cvf $(MAC_exportLib) *
+###################
+# Publish the artifact
+################### 
+- task: PublishPipelineArtifact@1
+  displayName: '🍻 Publish libs'
+  inputs:
+    targetPath: $(MAC_exportLib)
+    artifactName: 'Libraries'
