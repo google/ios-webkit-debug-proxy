@@ -210,6 +210,15 @@ Make sure you're using latest version of ios-webkit-debug-proxy
   - Check that webinspector switch is enabled (Settings -> Safari -> Advanced -> Web Inspector)
   - Most likely simulator's web inspector daemon listens on ipv6 interface, check that you have `::1 localhost` line in `/etc/hosts`
 
+##### Building under Rosetta (OS X)
+
+libimobildevice formulae [depends on](https://github.com/Homebrew/homebrew-core/blob/d6c416caf0622f2aac47742bca679c3510d0b1d9/Formula/libimobiledevice.rb#L30) openssl@1.1, which is key-only and requires the following env paths for the build
+
+```console
+export PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig"
+export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"
+export CPPFLAGS="-I/usr/local/opt/openssl@1.1/include"
+```
 
 ##### If no luck so far...
 Lastly, always try replugging in the USB cable.
