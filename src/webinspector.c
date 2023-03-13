@@ -154,9 +154,9 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // start webinspector, get port
-  if (lockdownd_start_service(client, "com.apple.webinspector", &service) ||
-      !service->port) {
-    perror("Could not start com.apple.webinspector!");
+  lockdownd_error_t lerr = lockdownd_start_service(client, "com.apple.webinspector", &service);
+  if (!service || service->port == 0) {
+    fprintf(stderr, "Could not start com.apple.webinspector! Error code: %d\n", lerr);
     goto leave_cleanup;
   }
 
