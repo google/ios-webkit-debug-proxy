@@ -340,7 +340,11 @@ sm_status sm_remove_fd(sm_t self, int fd) {
   if (!FD_ISSET(fd, my->all_fds)) {
     return SM_ERROR;
   }
-  ht_put(my->fd_to_ssl, HT_KEY(fd), NULL);
+  SSL *ssl_session = (SSL *)ht_put(my->fd_to_ssl, HT_KEY(fd), NULL);
+  if (ssl_session) {
+    SSL_shutdown(ssl_session);
+    SSL_free(ssl_session);
+  }
   void *value = ht_put(my->fd_to_value, HT_KEY(fd), NULL);
   bool is_server = FD_ISSET(fd, my->server_fds);
   sm_on_debug(self, "ss.remove%s_fd(%d)", (is_server ? "_server" : ""), fd);
