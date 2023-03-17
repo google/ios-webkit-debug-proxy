@@ -30,6 +30,7 @@
 #include <libimobiledevice/lockdown.h>
 
 #include "char_buffer.h"
+#include "idevice_ext.h"
 #include "webinspector.h"
 
 
@@ -52,50 +53,6 @@ struct wi_private {
 //
 // CONNECT
 //
-
-// based on latest libimobiledevice/src/idevice.h
-struct idevice_connection_private {
-  idevice_t device;
-  enum idevice_connection_type type;
-  void *data;
-  void *ssl_data;
-};
-
-struct ssl_data_private {
-	SSL *session;
-	SSL_CTX *ctx;
-};
-typedef struct ssl_data_private *ssl_data_t;
-
-wi_status idevice_connection_get_ssl_session(idevice_connection_t connection,
-    SSL **to_session) {
-  if (!connection || !to_session) {
-    return WI_ERROR;
-  }
-
-  idevice_connection_private *c = (
-      (sizeof(*connection) == sizeof(idevice_connection_private)) ?
-      (idevice_connection_private *) connection : NULL);
-
-  if (!c || c->data <= 0) {
-    perror("Invalid idevice_connection struct. Please verify that "
-        __FILE__ "'s idevice_connection_private matches your version of"
-        " libimbiledevice/src/idevice.h");
-    return WI_ERROR;
-  }
-
-  ssl_data_t sd = (ssl_data_t)c->ssl_data;
-  if (!sd || !sd->session) {
-    perror("Invalid ssl_data struct. Make sure libimobiledevice was compiled"
-        " with openssl. Otherwise please verify that " __FILE__ "'s ssl_data"
-        " matches your version of libimbiledevice/src/idevice.h");
-    return WI_ERROR;
-  }
-
-  *to_session = sd->session;
-  return WI_SUCCESS;
-}
-
 int wi_connect(const char *device_id, char **to_device_id,
     char **to_device_name, int *to_device_os_version,
     void **to_ssl_session, int recv_timeout) {
@@ -166,16 +123,6 @@ int wi_connect(const char *device_id, char **to_device_id,
     goto leave_cleanup;
   }
 
-  // enable ssl
-  if (service->ssl_enabled == 1) {
-    if (!to_ssl_session || idevice_connection_enable_ssl(connection) ||
-        idevice_connection_get_ssl_session(connection, &ssl_session)) {
-      perror("ssl connection failed!");
-      goto leave_cleanup;
-    }
-    *to_ssl_session = ssl_session;
-  }
-
   if (client) {
     // not needed anymore
     lockdownd_client_free(client);
@@ -186,6 +133,15 @@ int wi_connect(const char *device_id, char **to_device_id,
   if (idevice_connection_get_fd(connection, &fd)) {
     perror("Unable to get connection file descriptor.");
     goto leave_cleanup;
+  }
+
+  // enable ssl
+  if (service->ssl_enabled == 1) {
+    if (!to_ssl_session || idevice_ext_connection_enable_ssl(device_id, &fd, &ssl_session)) {
+      perror("ssl connection failed!");
+      goto leave_cleanup;
+    }
+    *to_ssl_session = ssl_session;
   }
 
   if (recv_timeout < 0) {
