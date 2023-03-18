@@ -19,7 +19,7 @@ PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.3.0)
 PKG_CHECK_MODULES(libplist, libplist-2.0 >= 2.2.0)
 PKG_CHECK_MODULES(libusbmuxd, libusbmuxd-2.0 >= 2.0.0)
-PKG_CHECK_MODULES(openssl, openssl >= 0.9.8)
+PKG_CHECK_MODULES(openssl, openssl >= 1.1.0)
 AC_CHECK_LIB([plist-2.0], [plist_to_xml],
              [ ], [AC_MSG_FAILURE([*** Unable to link with libplist])],
              [$libplist_LIBS])
