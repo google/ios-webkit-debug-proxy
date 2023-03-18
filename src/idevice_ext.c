@@ -61,7 +61,7 @@ int pair_record_get_item_as_key_data(plist_t pair_record, const char* name, key_
   return -1;
 }
 
-int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_session) {
+int idevice_ext_connection_enable_ssl(const char *device_id, int fd, SSL **to_session) {
   plist_t pair_record = NULL;
   if (read_pair_record(device_id, &pair_record)) {
     fprintf(stderr, "Failed to read pair record\n");
@@ -80,7 +80,7 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_s
     return -1;
   }
 
-  BIO_set_fd(ssl_bio, *fd, BIO_NOCLOSE);
+  BIO_set_fd(ssl_bio, fd, BIO_NOCLOSE);
   SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_method());
   if (ssl_ctx == NULL) {
     fprintf(stderr, "Could not create SSL context\n");

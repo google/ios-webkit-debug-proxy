@@ -15,7 +15,7 @@ extern "C" {
 #include <openssl/ssl.h>
 #include <libimobiledevice/libimobiledevice.h>
 
-int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_session);
+int idevice_ext_connection_enable_ssl(const char *device_id, int fd, SSL **to_session);
 
 #ifdef	__cplusplus
 }
