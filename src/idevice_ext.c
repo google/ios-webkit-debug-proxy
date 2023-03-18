@@ -18,27 +18,27 @@
 #include "idevice_ext.h"
 
 typedef struct {
-	unsigned char *data;
-	unsigned int size;
+  unsigned char *data;
+  unsigned int size;
 } key_data_t;
 
 int read_pair_record(const char *udid, plist_t *pair_record) {
-	char* record_data = NULL;
-	uint32_t record_size = 0;
+  char* record_data = NULL;
+  uint32_t record_size = 0;
 
-	int res = usbmuxd_read_pair_record(udid, &record_data, &record_size);
-	if (res < 0) {
-		free(record_data);
+  int res = usbmuxd_read_pair_record(udid, &record_data, &record_size);
+  if (res < 0) {
+    free(record_data);
     return -1;
-	}
+  }
 
-	*pair_record = NULL;
-	plist_from_memory(record_data, record_size, pair_record);
-	free(record_data);
+  *pair_record = NULL;
+  plist_from_memory(record_data, record_size, pair_record);
+  free(record_data);
 
-	if (!*pair_record) {
-		return -1;
-	}
+  if (!*pair_record) {
+    return -1;
+  }
 
   return 0;
 }
@@ -75,51 +75,51 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_s
   plist_free(pair_record);
 
   BIO *ssl_bio = BIO_new(BIO_s_socket());
-	if (!ssl_bio) {
+  if (!ssl_bio) {
     fprintf(stderr, "Could not create SSL bio\n");
     return -1;
   }
 
   BIO_set_fd(ssl_bio, *fd, BIO_NOCLOSE);
-	SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_method());
-	if (ssl_ctx == NULL) {
+  SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_method());
+  if (ssl_ctx == NULL) {
     fprintf(stderr, "Could not create SSL context\n");
-		BIO_free(ssl_bio);
-	}
+    BIO_free(ssl_bio);
+  }
 
   SSL_CTX_set_security_level(ssl_ctx, 0);
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_VERSION);
 
-	BIO* membp;
-	X509* rootCert = NULL;
-	membp = BIO_new_mem_buf(root_cert.data, root_cert.size);
-	PEM_read_bio_X509(membp, &rootCert, NULL, NULL);
-	BIO_free(membp);
+  BIO* membp;
+  X509* rootCert = NULL;
+  membp = BIO_new_mem_buf(root_cert.data, root_cert.size);
+  PEM_read_bio_X509(membp, &rootCert, NULL, NULL);
+  BIO_free(membp);
   SSL_CTX_use_certificate(ssl_ctx, rootCert);
-	X509_free(rootCert);
-	free(root_cert.data);
+  X509_free(rootCert);
+  free(root_cert.data);
 
-	RSA* rootPrivKey = NULL;
-	membp = BIO_new_mem_buf(root_privkey.data, root_privkey.size);
-	PEM_read_bio_RSAPrivateKey(membp, &rootPrivKey, NULL, NULL);
-	BIO_free(membp);
+  RSA* rootPrivKey = NULL;
+  membp = BIO_new_mem_buf(root_privkey.data, root_privkey.size);
+  PEM_read_bio_RSAPrivateKey(membp, &rootPrivKey, NULL, NULL);
+  BIO_free(membp);
   SSL_CTX_use_RSAPrivateKey(ssl_ctx, rootPrivKey);
-	RSA_free(rootPrivKey);
-	free(root_privkey.data);
+  RSA_free(rootPrivKey);
+  free(root_privkey.data);
 
-	SSL *ssl = SSL_new(ssl_ctx);
+  SSL *ssl = SSL_new(ssl_ctx);
   if (!ssl) {
     fprintf(stderr, "Could not create SSL object\n");
-		BIO_free(ssl_bio);
-		SSL_CTX_free(ssl_ctx);
+    BIO_free(ssl_bio);
+    SSL_CTX_free(ssl_ctx);
     return -1;
   }
 
-	SSL_set_connect_state(ssl);
-	SSL_set_verify(ssl, 0, NULL);
-	SSL_set_bio(ssl, ssl_bio, ssl_bio);
+  SSL_set_connect_state(ssl);
+  SSL_set_verify(ssl, 0, NULL);
+  SSL_set_bio(ssl, ssl_bio, ssl_bio);
 
-	int ssl_error = 0;
+  int ssl_error = 0;
   while (1) {
     ssl_error = SSL_get_error(ssl, SSL_do_handshake(ssl));
     if (ssl_error == 0 || ssl_error != SSL_ERROR_WANT_READ) {
