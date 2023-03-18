@@ -32,9 +32,11 @@ LT_INIT
 # Defines versions of required modules
 libimobiledevice_version=`$PKG_CONFIG --modversion libimobiledevice-1.0`
 libplist_version=`$PKG_CONFIG --modversion libplist-2.0`
+libusbmuxd_version=`$PKG_CONFIG --modversion libusbmuxd-2.0`
 
 AC_DEFINE_UNQUOTED([LIBIMOBILEDEVICE_VERSION], ["$libimobiledevice_version"], [ ])
 AC_DEFINE_UNQUOTED([LIBPLIST_VERSION], ["$libplist_version"], [ ])
+AC_DEFINE_UNQUOTED([LIBUSBMUXD_VERSION], ["$libusbmuxd_version"], [ ])
 
 # Checks for header files.
 AC_HEADER_STDC

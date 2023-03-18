@@ -260,8 +260,8 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
       case 'V':
         printf(
             "%s\n"
-            "Built with libimobiledevice v%s, libplist v%s\n",
-            PACKAGE_STRING, LIBIMOBILEDEVICE_VERSION, LIBPLIST_VERSION);
+            "Built with libimobiledevice v%s, libplist v%s, libusbmuxd v%s\n",
+            PACKAGE_STRING, LIBIMOBILEDEVICE_VERSION, LIBPLIST_VERSION, LIBUSBMUXD_VERSION);
         ret = -2;
         break;
       case 'u':
