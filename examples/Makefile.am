@@ -3,8 +3,8 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src
 
-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(openssl_CFLAGS)
-AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(openssl_LIBS)
+AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(libusbmuxd_CFLAGS) $(openssl_CFLAGS)
+AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(libusbmuxd_LIBS) $(openssl_LIBS)
 
 noinst_PROGRAMS = ws_echo1 ws_echo2 wi_client dl_client
 
@@ -34,10 +34,12 @@ wi_client_SOURCES = \
     wi_client.c \
     char_buffer.h \
     rpc.h \
+    idevice_ext.h \
     webinspector.h
 wi_client_LDADD = \
     ../src/char_buffer.o \
     ../src/rpc.o \
+    ../src/idevice_ext.o \
     ../src/webinspector.o
 
 dl_client_SOURCES =  \

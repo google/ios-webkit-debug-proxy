@@ -3,8 +3,8 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/include/ios-webkit-debug-proxy
 
-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(libpcreposix_CFLAGS) $(openssl_CFLAGS)
-AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(libpcreposix_LIBS) $(openssl_LIBS)
+AM_CFLAGS = $(GLOBAL_CFLAGS) $(libimobiledevice_CFLAGS) $(libplist_CFLAGS) $(libusbmuxd_CFLAGS) $(libpcreposix_CFLAGS) $(openssl_CFLAGS)
+AM_LDFLAGS = $(libimobiledevice_LIBS) $(libplist_LIBS) $(libusbmuxd_LIBS) $(libpcreposix_LIBS) $(openssl_LIBS)
 
 lib_LTLIBRARIES = libios_webkit_debug_proxy.la
 libios_webkit_debug_proxy_la_LIBADD =
@@ -20,6 +20,7 @@ libios_webkit_debug_proxy_la_SOURCES = ios_webkit_debug_proxy_main.c \
     sha1.c sha1.h \
     socket_manager.c socket_manager.h \
     validate_utf8.h \
+    idevice_ext.c idevice_ext.h \
     webinspector.c webinspector.h \
     websocket.c websocket.h
 
@@ -35,6 +36,7 @@ ios_webkit_debug_proxy_SOURCES = ios_webkit_debug_proxy_main.c \
     sha1.c sha1.h \
     socket_manager.c socket_manager.h \
     validate_utf8.h \
+    idevice_ext.c idevice_ext.h \
     webinspector.c webinspector.h \
     websocket.c websocket.h
 ios_webkit_debug_proxy_CFLAGS = $(AM_CFLAGS)
