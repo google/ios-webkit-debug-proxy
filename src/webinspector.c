@@ -137,8 +137,9 @@ int wi_connect(const char *device_id, char **to_device_id,
 
   // enable ssl
   if (service->ssl_enabled == 1) {
-    if (!to_ssl_session || idevice_ext_connection_enable_ssl(device_id, &fd, &ssl_session)) {
-      fprintf(stderr, "SSL connection failed!\n");
+    int ssl_ret = 0;
+    if (!to_ssl_session || (ssl_ret = idevice_ext_connection_enable_ssl(device_id, &fd, &ssl_session))) {
+      fprintf(stderr, "SSL connection failed! Error code: %d\n", ssl_ret);
       goto leave_cleanup;
     }
     *to_ssl_session = ssl_session;

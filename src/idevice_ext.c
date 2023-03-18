@@ -63,9 +63,8 @@ int pair_record_get_item_as_key_data(plist_t pair_record, const char* name, key_
 
 int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_session) {
   plist_t pair_record = NULL;
-  read_pair_record(device_id, &pair_record);
-
-  if (!pair_record) {
+  if (read_pair_record(device_id, &pair_record)) {
+    fprintf(stderr, "Failed to read pair record\n");
     return -1;
   }
 
@@ -86,7 +85,6 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_s
 	if (ssl_ctx == NULL) {
     fprintf(stderr, "Could not create SSL context\n");
 		BIO_free(ssl_bio);
-		return -1;
 	}
 
   SSL_CTX_set_security_level(ssl_ctx, 0);
@@ -122,7 +120,7 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_s
 	SSL_set_bio(ssl, ssl_bio, ssl_bio);
 
 	int ssl_error = 0;
-  do {
+  while (1) {
     ssl_error = SSL_get_error(ssl, SSL_do_handshake(ssl));
     if (ssl_error == 0 || ssl_error != SSL_ERROR_WANT_READ) {
       break;
@@ -133,13 +131,12 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int *fd, SSL **to_s
     struct timespec ts = { 0, 100000000 };
     nanosleep(&ts, NULL);
 #endif
-  } while (1);
+  }
 
   if (ssl_error != 0) {
-    fprintf(stderr, "Error during SSL handshake: %d\n", ssl_error);
     SSL_free(ssl);
     SSL_CTX_free(ssl_ctx);
-    return -1;
+    return ssl_error;
   }
 
   *to_session = ssl;
