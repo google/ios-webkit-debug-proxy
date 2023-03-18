@@ -29,6 +29,8 @@
 #include <winsock2.h>
 #endif
 
+#include <openssl/opensslv.h>
+
 #include "device_listener.h"
 #include "hash_table.h"
 #include "ios_webkit_debug_proxy.h"
@@ -260,8 +262,9 @@ int iwdpm_configure(iwdpm_t self, int argc, char **argv) {
       case 'V':
         printf(
             "%s\n"
-            "Built with libimobiledevice v%s, libplist v%s, libusbmuxd v%s\n",
-            PACKAGE_STRING, LIBIMOBILEDEVICE_VERSION, LIBPLIST_VERSION, LIBUSBMUXD_VERSION);
+            "Built with libimobiledevice v%s, libplist v%s, libusbmuxd v%s, %s\n",
+            PACKAGE_STRING, LIBIMOBILEDEVICE_VERSION, LIBPLIST_VERSION,
+            LIBUSBMUXD_VERSION, OPENSSL_VERSION_TEXT);
         ret = -2;
         break;
       case 'u':
