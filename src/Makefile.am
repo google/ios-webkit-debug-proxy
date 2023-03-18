@@ -20,7 +20,7 @@ libios_webkit_debug_proxy_la_SOURCES = ios_webkit_debug_proxy_main.c \
     sha1.c sha1.h \
     socket_manager.c socket_manager.h \
     validate_utf8.h \
-		idevice_ext.c idevice_ext.h \
+    idevice_ext.c idevice_ext.h \
     webinspector.c webinspector.h \
     websocket.c websocket.h
 
@@ -36,7 +36,7 @@ ios_webkit_debug_proxy_SOURCES = ios_webkit_debug_proxy_main.c \
     sha1.c sha1.h \
     socket_manager.c socket_manager.h \
     validate_utf8.h \
-		idevice_ext.c idevice_ext.h \
+    idevice_ext.c idevice_ext.h \
     webinspector.c webinspector.h \
     websocket.c websocket.h
 ios_webkit_debug_proxy_CFLAGS = $(AM_CFLAGS)
