@@ -53,6 +53,22 @@ struct wi_private {
 //
 // CONNECT
 //
+static const char *lockdownd_err_to_string(int ldret) {
+  switch (ldret) {
+    case LOCKDOWN_E_PASSWORD_PROTECTED:
+      return "Please enter the passcode on the device, then try again.";
+    case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING:
+      return "Please accept the trust dialog on the screen of device, then try again.";
+    case LOCKDOWN_E_USER_DENIED_PAIRING:
+      return "User denied the trust dialog. Re-plug device and try again.";
+    case LOCKDOWN_E_INVALID_CONF:
+    case LOCKDOWN_E_INVALID_HOST_ID:
+      return "Device is not paired with this host. Re-plug device and try again.";
+    default:
+      return "Could not connect to lockdownd, error code: %d.";
+  }
+}
+
 int wi_connect(const char *device_id, char **to_device_id,
     char **to_device_name, int *to_device_os_version,
     void **to_ssl_session, int recv_timeout) {
@@ -76,7 +92,7 @@ int wi_connect(const char *device_id, char **to_device_id,
   lockdownd_error_t ldret;
   if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(
         phone, &client, "ios_webkit_debug_proxy"))) {
-    fprintf(stderr, "Could not connect to lockdownd, error code %d. Exiting.\n", ldret);
+    fprintf(stderr, "%s\n", lockdownd_err_to_string(ldret));
     goto leave_cleanup;
   }
 
@@ -111,9 +127,9 @@ int wi_connect(const char *device_id, char **to_device_id,
   }
 
   // start webinspector, get port
-  lockdownd_error_t lerr = lockdownd_start_service(client, "com.apple.webinspector", &service);
-  if (!service || service->port == 0) {
-    fprintf(stderr, "Could not start com.apple.webinspector! Error code: %d\n", lerr);
+  if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_start_service(client,
+          "com.apple.webinspector", &service)) || !service || !service->port) {
+    fprintf(stderr, "Could not start com.apple.webinspector! Error code: %d\n", ldret);
     goto leave_cleanup;
   }
 
