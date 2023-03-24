@@ -99,12 +99,13 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int fd, SSL **to_se
   X509_free(rootCert);
   free(root_cert.data);
 
-  RSA* rootPrivKey = NULL;
+  EVP_PKEY* rootPrivKey = NULL;
   membp = BIO_new_mem_buf(root_privkey.data, root_privkey.size);
-  PEM_read_bio_RSAPrivateKey(membp, &rootPrivKey, NULL, NULL);
+  PEM_read_bio_PrivateKey(membp, &rootPrivKey, NULL, NULL);
   BIO_free(membp);
-  SSL_CTX_use_RSAPrivateKey(ssl_ctx, rootPrivKey);
-  RSA_free(rootPrivKey);
+  SSL_CTX_use_PrivateKey(ssl_ctx, rootPrivKey);
+  EVP_PKEY_free(rootPrivKey);
+
   free(root_privkey.data);
 
   SSL *ssl = SSL_new(ssl_ctx);
