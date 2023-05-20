@@ -33,7 +33,11 @@ int read_pair_record(const char *udid, plist_t *pair_record) {
   }
 
   *pair_record = NULL;
+#if LIBPLIST_VERSION_MAJOR >= 2 && LIBPLIST_VERSION_MINOR >= 3
+  plist_from_memory(record_data, record_size, pair_record, NULL);
+#else
   plist_from_memory(record_data, record_size, pair_record);
+#endif
   free(record_data);
 
   if (!*pair_record) {

@@ -38,6 +38,11 @@ AC_DEFINE_UNQUOTED([LIBIMOBILEDEVICE_VERSION], ["$libimobiledevice_version"], [ 
 AC_DEFINE_UNQUOTED([LIBPLIST_VERSION], ["$libplist_version"], [ ])
 AC_DEFINE_UNQUOTED([LIBUSBMUXD_VERSION], ["$libusbmuxd_version"], [ ])
 
+[libplist_version_major=`expr "$libplist_version" : '\([0-9]*\)'`]
+[libplist_version_minor=`expr "$libplist_version" : '[0-9]*\.\([0-9]*\)'`]
+AC_DEFINE_UNQUOTED([LIBPLIST_VERSION_MAJOR], [$libplist_version_major], [ ])
+AC_DEFINE_UNQUOTED([LIBPLIST_VERSION_MINOR], [$libplist_version_minor], [ ])
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_RESOLV
