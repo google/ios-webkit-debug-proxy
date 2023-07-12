@@ -578,23 +578,6 @@ void sm_resend(sm_t self, int fd) {
 void sm_recv(sm_t self, int fd) {
   sm_private_t my = self->private_state;
   my->curr_recv_fd = fd;
-  while (1) {
-	ssize_t read_bytes = 0;
-  	IS_SSL_FD(fd)
-  	{
-		idevice_error_t error = idevice_connection_receive(connectionSSL, 
-															my->tmp_buf, 
-															my->tmp_buf_length, 
-															(uint32_t*)&read_bytes);
-		if (error != IDEVICE_E_SUCCESS)
-			break; // SSL_ERROR_WANT_READ ?
-  	}
-	else {
-    	read_bytes = recv(fd, my->tmp_buf, my->tmp_buf_length, RECV_FLAGS);
-	}
-	
-  sm_private_t my = self->private_state;
-  my->curr_recv_fd = fd;
   void *ssl_session = ht_get_value(my->fd_to_ssl, HT_KEY(fd));
   while (1) {
     ssize_t read_bytes;
