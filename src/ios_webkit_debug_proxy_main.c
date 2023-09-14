@@ -217,7 +217,7 @@ void iwdpm_free(iwdpm_t self) {
   }
 }
 
-iwdpm_t iwdpm_new(int argc, char **argv, int *to_exit) {
+iwdpm_t iwdpm_new() {
   iwdpm_t self = malloc(sizeof(struct iwdpm_struct));
   if (!self) {
     return NULL;
