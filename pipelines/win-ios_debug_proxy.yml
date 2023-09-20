@@ -47,7 +47,7 @@ steps:
       Set-Location C:\msys64\Location
       $(MINGW32) 'wget https://github.com/libimobiledevice/libplist/archive/2.2.0.zip -O libplist.zip'
       $(MINGW32) 'wget https://github.com/libimobiledevice/libusbmuxd/archive/2.0.2.zip -O libusbmuxd.zip'
-      $(MINGW32) 'wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_1.zip -O openssl.zip'
+      $(MINGW32) 'wget https://github.com/openssl/openssl/archive/openssl-3.0.11.zip -O openssl.zip'
       $(MINGW32) 'wget https://github.com/libimobiledevice/libimobiledevice/archive/1.3.0.zip -O libimobiledevice.zip'
       $(MINGW32) 'wget https://ftp.pcre.org/pub/pcre/pcre-8.43.zip -O pcre.zip'
       $(MINGW32) 'wget https://github.com/OutSystems/ios-webkit-debug-proxy/archive/outsystems.zip -O ios-webkit-debug-proxy.zip'
