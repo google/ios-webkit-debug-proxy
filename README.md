@@ -29,10 +29,11 @@ sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev 
 ```
 
 Build and install dependencies that require more recent versions:
-- [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice)
-- [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd)
-- [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
 - [libplist](https://github.com/libimobiledevice/libplist)
+- [libimobiledevice-glue](https://github.com/libimobiledevice/libimobiledevice-glue)
+- [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd)
+- [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice)
+- [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
 
 Build and install `ios-webkit-debug-proxy`:
 ```console
