@@ -13,9 +13,6 @@ Example Proxy Clients
 - Browser JS
    \- [wdp_client.html](wdp_client.html) demonstrates DevTools command I/O, e.g. "Page.navigate".
 
-- NodeJS
-   \- [wdp_client.js](wdp_client.js) is the command-line equivalent of [wdp_client.html](wdp_client.html).
-
 - C
    \- [wi_client.c](wi_client.c) a minimal webinspector client.
 
