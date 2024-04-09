@@ -122,6 +122,8 @@ int idevice_ext_connection_enable_ssl(const char *device_id, int fd, SSL **to_se
 
   SSL_set_connect_state(ssl);
   SSL_set_verify(ssl, 0, NULL);
+  SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+  SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
   SSL_set_bio(ssl, ssl_bio, ssl_bio);
 
   int ssl_error = 0;
