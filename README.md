@@ -174,10 +174,6 @@ ios_webkit_debug_proxy: error while loading shared libraries: libimobiledevice.s
 
 Run `sudo ldconfig`
 
-##### ssl sendq retry failed: Undefined error: 0
-
-should only happen with versions > 1.8.5, make sure ios-webkit-debug-proxy is built with same version of libssl that libimobildevice was built with
-
 ##### idevice_id not found
 
 The `idevice_id` executable may be found as part of the libimobiledevice-utils package.
