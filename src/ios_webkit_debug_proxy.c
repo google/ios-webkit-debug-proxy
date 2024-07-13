@@ -679,7 +679,9 @@ ws_status iwdp_send_http(ws_t ws, bool is_head, const char *status,
   if (asprintf(&data,
       "HTTP/1.1 %s\r\n"
       "Content-length: %zd\r\n"
-      "Connection: close"
+      "Connection: close\r\n"
+      "Access-Control-Allow-Origin: *\r\n"
+      "Access-Control-Allow-Methods: GET, HEAD"
       "%s%s\r\n\r\n%s",
       status, (content ? strlen(content) : 0),
       (ctype ? "\r\nContent-Type: " : ""), (ctype ? ctype : ""),
