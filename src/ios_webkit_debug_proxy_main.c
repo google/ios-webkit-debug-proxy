@@ -67,6 +67,9 @@ static void on_signal(int sig) {
 int main(int argc, char** argv) {
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
+#ifndef WIN32
+  signal(SIGPIPE, SIG_IGN);
+#endif
 
 #ifdef WIN32
   WSADATA wsa_data;
