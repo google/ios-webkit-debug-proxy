@@ -35,6 +35,17 @@ Build and install dependencies that require more recent versions:
 - [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice)
 - [usbmuxd](https://github.com/libimobiledevice/usbmuxd)
 
+#### Fedora specific  
+
+Install dependencies:  
+```console
+sudo dnf install autoconf automake libusb1-devel libusb-compat-0.1-devel libtool openssl-devel
+```
+If you do not want to build and install the most recent versions of the noted libs:  
+```console
+sudo dnf install libplist-devel usbmuxd libimobiledevice-devel libimobiledevice-utils libimobiledevice-glue-devel
+```  
+
 Build and install `ios-webkit-debug-proxy`:
 ```console
 git clone https://github.com/google/ios-webkit-debug-proxy.git
