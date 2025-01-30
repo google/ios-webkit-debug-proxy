@@ -1,0 +1,61 @@
+language: c
+sudo: required
+dist: trusty
+
+#Evito che travis lanci una compilazione ogni volta che si crea un tag
+branches:
+  only:
+    - master
+    - debian-build
+
+env:
+    global:
+        - GITHUB_EMAIL: max.galbusera+travis@gmail.com
+        - GITHUB_USERNAME: maxgalbu
+        - GITHUB_REPO: ios-webkit-debug-proxy
+        - GITHUB_REPOPATH: ${GITHUB_USERNAME}/${GITHUB_REPO}
+        - GITHUB_TAGNAME: latest
+        - secure: "zjmZbYNZ7jp7TLjsMwOZgyRyir6nGKrqCp+WrouJ1J6OcvYyrQyqtk1rmHCW/V0p6p53iYD3BPvF3NBua+YvG0lDymcAMTtn33gNgj9IzKeb88yG1JC/tF1QcLnYTx0csPYR9KjXnunZ1p6RX08a4Hix0yW5iUq9zYmScb3h8aHBR+9BU2b6/OgJ3IItFABtdutElZvAd4qOr9SPhHP0cKKMtiCLvh2P7JF3S4q4Aw1yptZqoxadzgyFPNTKInlWfgKi7U/Ds8WZmBCt69+SwMh+HVKdl8J2hgSJACP1Vsq5lRmknoirYLOrIg5stBFMRPKXnU0u/l/K7O/dHAEa1PTr/K6NGZLa8lKjSNQlp6Tq7Ql3zwIiyziOQY6zY5AADxs3slYJuynArhuhKT9wI0UcBt7owAdB/kJqZGyp5iT1fkogL5tlUgmnXtsuFeyQwDrngBYUFGRT/5ohNmGNZDYBgu3dS725T33ypZk3ZrtkHMsljOeeo6IG8o/jHF6IbKEVmuI5IyP8Fk58jp+t4A99PRm11pFAHvuUve9X0wj5horgib1IR+XvyMqUKPLI9SdQ2v9W4bvte7/V6V2eHgdfcBmJJRS57f4UMa+3X4s9M9Us8lFyaZJp6ryA/zE06hJwM62rI7moSAdrgFr/dMIySHM515tJaNYh7ODj3QY="
+
+script:
+    #Newer version of libimobiledevice and dependencies
+    - sudo add-apt-repository ppa:martin-salbaba/ppa+libimobiledevice -y
+    - sudo apt-get update
+
+    #Tools to build
+    - sudo apt-get install autoconf automake libusb-dev libusb-1.0-0-dev libplist-dev libplist++-dev usbmuxd libtool libimobiledevice-dev -y
+    - sudo apt-get install debhelper dh-make devscripts -y
+    - sudo apt-get install libparse-debcontrol-perl -y
+
+    #Build
+    - ./autogen.sh
+    - make
+
+    #Create changelog
+    - dch -v $(git describe --tags $(git rev-list --tags --max-count=1)) -m "New upstream version" -D stable --create --package $GITHUB_REPO --controlmaint
+
+    #Make package
+    - dpkg-buildpackage -rfakeroot -us -uc
+
+    #Creo un tag per creare una release su github
+    - git config --global user.email "${GITHUB_EMAIL}"
+    - git config --global user.name "Travis-CI"
+    - git remote rm origin
+    - git remote add origin https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/${GITHUB_REPO}
+    - git tag -d $GITHUB_TAGNAME
+    - git push origin :$GITHUB_TAGNAME --quiet 2> /dev/null
+    - git tag -a $GITHUB_TAGNAME -m 'latest version'
+    - git push origin $GITHUB_TAGNAME --quiet 2> /dev/null
+
+    #The .deb is in the parent folder
+    - cd ..
+
+    #Download github-release (https://github.com/aktau/github-release)
+    - wget "https://github.com/aktau/github-release/releases/download/v0.6.2/linux-amd64-github-release.tar.bz2"
+    - tar xvf linux-amd64-github-release.tar.bz2
+
+    #Use it
+    - export FILENAME=$(printf '%s\n' * | grep .deb$)
+    - bin/linux/amd64/github-release delete --user $GITHUB_USERNAME --repo $GITHUB_REPO --tag $GITHUB_TAGNAME
+    - bin/linux/amd64/github-release release --user $GITHUB_USERNAME --repo $GITHUB_REPO --tag $GITHUB_TAGNAME --name "Latest version"
+    - bin/linux/amd64/github-release upload --user $GITHUB_USERNAME --repo $GITHUB_REPO --tag $GITHUB_TAGNAME --name "$FILENAME" --file $FILENAME
