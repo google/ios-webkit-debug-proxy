@@ -245,7 +245,9 @@ wi_status wi_send(wi_t self, const char *data, size_t data_len) {
   *out_tail++ = ((data_len >> 8) & 0xFF);
   *out_tail++ = (data_len & 0xFF);
 
-  memcpy(out_tail, data, data_len);
+  if (data) {
+    memcpy(out_tail, data, data_len);
+  }
 
   wi_on_debug(self, "wi.send_packet", out_head, length);
   wi_status ret = self->send_packet(self, out_head, length);
@@ -269,6 +271,9 @@ wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
   if (!my->partials_supported) {
     ret = wi_send(self, rpc_bin, rpc_len);
     free(rpc_bin);
+    // webinspectord may not ack the message with relatively big payloads
+    // sending an empty payload to prompt the processing
+    wi_send(self, NULL, 0);
     return ret;
   }
 
