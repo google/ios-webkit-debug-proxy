@@ -38,7 +38,7 @@ int wi_connect(const char *device_id, char **to_device_id,
 
 struct wi_struct;
 typedef struct wi_struct *wi_t;
-wi_t wi_new(bool partials_supported);
+wi_t wi_new(bool is_sim, bool partials_supported);
 void wi_free(wi_t self);
 
 struct wi_private;

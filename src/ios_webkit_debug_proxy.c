@@ -130,7 +130,7 @@ struct iwdp_iwi_struct {
   ht_t page_num_to_ipage;
 };
 
-iwdp_iwi_t iwdp_iwi_new(bool partials_supported, bool *is_debug);
+iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool partials_supported, bool *is_debug);
 void iwdp_iwi_free(iwdp_iwi_t iwi);
 
 struct iwdp_ifs_struct;
@@ -434,7 +434,7 @@ dl_status iwdp_on_attach(dl_t dl, const char *device_id, int device_num) {
   }
   iport->device_name = (device_name ? device_name : strdup(device_id));
   iport->device_os_version = device_os_version;
-  iwdp_iwi_t iwi = iwdp_iwi_new(!is_sim && device_os_version < 0xb0000,
+  iwdp_iwi_t iwi = iwdp_iwi_new(is_sim, !is_sim && device_os_version < 0xb0000,
       self->is_debug);
   iwi->iport = iport;
   iport->iwi = iwi;
@@ -1683,7 +1683,7 @@ void iwdp_iwi_free(iwdp_iwi_t iwi) {
   }
 }
 
-iwdp_iwi_t iwdp_iwi_new(bool partials_supported, bool *is_debug) {
+iwdp_iwi_t iwdp_iwi_new(bool is_sim, bool partials_supported, bool *is_debug) {
   iwdp_iwi_t iwi = (iwdp_iwi_t)malloc(sizeof(struct iwdp_iwi_struct));
   if (!iwi) {
     return NULL;
@@ -1693,7 +1693,7 @@ iwdp_iwi_t iwdp_iwi_new(bool partials_supported, bool *is_debug) {
   iwi->app_id_to_true = ht_new(HT_STRING_KEYS);
   iwi->page_num_to_ipage = ht_new(HT_INT_KEYS);
   rpc_t rpc = rpc_new();
-  wi_t wi = wi_new(partials_supported);
+  wi_t wi = wi_new(is_sim, partials_supported);
   if (!rpc || !wi || !iwi->page_num_to_ipage || !iwi->app_id_to_true) {
     iwdp_iwi_free(iwi);
     return NULL;

@@ -43,6 +43,7 @@
 #define MAX_BODY_LENGTH 1<<26
 
 struct wi_private {
+  bool is_sim;
   bool partials_supported;
   cb_t in;
   cb_t partial;
@@ -271,9 +272,11 @@ wi_status wi_send_plist(wi_t self, plist_t rpc_dict) {
   if (!my->partials_supported) {
     ret = wi_send(self, rpc_bin, rpc_len);
     free(rpc_bin);
-    // webinspectord may not ack the message with relatively big payloads
-    // sending an empty payload to prompt the processing
-    wi_send(self, NULL, 0);
+    if (!my->is_sim) {
+      // webinspectord may not ack the message with relatively big payloads
+      // sending an empty payload to prompt the processing of the last message
+      wi_send(self, NULL, 0);
+    }
     return ret;
   }
 
@@ -512,7 +515,7 @@ void wi_free(wi_t self) {
     free(self);
   }
 }
-wi_t wi_new(bool partials_supported) {
+wi_t wi_new(bool is_sim, bool partials_supported) {
   wi_t self = (wi_t)malloc(sizeof(struct wi_struct));
   if (!self) {
     return NULL;
@@ -527,6 +530,7 @@ wi_t wi_new(bool partials_supported) {
     wi_free(self);
     return NULL;
   }
+  self->private_state->is_sim = is_sim;
   self->private_state->partials_supported = partials_supported;
   return self;
 }

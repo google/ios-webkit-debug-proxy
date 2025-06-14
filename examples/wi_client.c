@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 
   // create inspector
   my_wi_t my_wi = (my_wi_t)malloc(sizeof(struct my_wi_struct));
-  wi_t wi = wi_new(false);
+  wi_t wi = wi_new(false, false);
   memset(my_wi, 0, sizeof(struct my_wi_struct));
   my_wi->device_id = device_id2;
   my_wi->fd = fd;
