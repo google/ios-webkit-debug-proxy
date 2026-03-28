@@ -547,6 +547,11 @@ ws_status ws_read_frame_length(ws_t self) {
       payload_length <<= 8;
       payload_length |= (unsigned char)*in_head++;
     }
+    if (payload_length > (1ULL << 26)) {
+      return self->on_error(self, 
+      "Extended payload_length %zu exceeds server limit",
+    payload_length); 
+    }
   }
   my->frame_length = 2 + payload_n + (is_masking ? 4 : 0) + payload_length;
 
