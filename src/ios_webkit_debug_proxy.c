@@ -1971,7 +1971,7 @@ iwdp_status iwdp_get_content_type(const char *path, bool is_local,
 #endif
   }
   if (!mime) {
-    char *fext = strrchr(path, '.');
+    const char *fext = strrchr(path, '.');
     if (fext) {
       ++fext;
       size_t n = (sizeof(EXT_TO_MIME) / sizeof(EXT_TO_MIME[0]));
