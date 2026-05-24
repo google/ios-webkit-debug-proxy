@@ -47,7 +47,7 @@ int read_pair_record(const char *udid, plist_t *pair_record) {
   return 0;
 }
 
-int pair_record_get_item_as_key_data(plist_t pair_record, const char* name, key_data_t *value) {
+static int pair_record_get_item_as_key_data(plist_t pair_record, const char* name, key_data_t *value) {
   char* buffer = NULL;
   uint64_t length = 0;
   plist_t node = plist_dict_get_item(pair_record, name);
