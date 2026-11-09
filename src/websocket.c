@@ -286,24 +286,6 @@ ws_status ws_send_frame(ws_t self,
   }
 
   size_t i;
-  bool is_utf8 = (opcode2 == OPCODE_TEXT ? true : false);
-  // Skip UTF-8 validation for large payloads (>1 MB) — the data is JSON from
-  // WebKit Inspector and is always valid UTF-8. Validating 50-200 MB payloads
-  // is expensive and unnecessary.
-  if (is_utf8 && payload_length <= (1 << 20)) {
-    unsigned int utf8_state = UTF8_VALID;
-    const char *payload_head = payload_data;
-    for (i = 0; i < payload_length; i++) {
-      unsigned char ch = *payload_head++;
-      utf8_state = validate_utf8[utf8_state + ch];
-      if (utf8_state == UTF8_INVALID) {
-        return self->on_error(self,
-            "Invalid %sUTF8 character 0x%x at %zd",
-            (is_masking ? "masked " :""), ch,
-            payload_head-1 - payload_data);
-      }
-    }
-  }
 
   int8_t payload_n = (payload_length < 126 ? 0 :
       payload_length <= UINT16_MAX ? 2 : 8);
@@ -671,19 +653,22 @@ ws_status ws_read_frame(ws_t self,
   }
   my->in->in_head = in_head;
 
-  bool is_utf8 = (opcode2 == OPCODE_TEXT ? true : false);
-  if (is_utf8) {
+  if (is_fin && opcode2 == OPCODE_TEXT) {
     unsigned int utf8_state = UTF8_VALID;
-    char *dt = my->data->tail;
-    for (i = 0; i < payload_length; i++) {
-      unsigned char ch = *dt++;
+    const char *p = my->data->head;
+    while (p < data_tail) {
+      unsigned char ch = *p++;
       utf8_state = validate_utf8[utf8_state + ch];
       if (utf8_state == UTF8_INVALID) {
         return self->on_error(self,
             "Invalid %sUTF8 character 0x%x at %zd",
-            (is_masking ? "masked " :""), ch,
-            dt-1 - my->data->tail);
+            (is_masking ? "masked " : ""), ch, p - 1 - my->data->head);
       }
+    }
+    if (utf8_state != UTF8_VALID) {
+      return self->on_error(self,
+          "Incomplete %sUTF8 character at end of message",
+          (is_masking ? "masked " : ""));
     }
   }
 
