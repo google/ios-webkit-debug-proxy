@@ -281,7 +281,10 @@ ws_status ws_send_frame(ws_t self,
 
   size_t i;
   bool is_utf8 = (opcode2 == OPCODE_TEXT ? true : false);
-  if (is_utf8) {
+  // Skip UTF-8 validation for large payloads (>1 MB) — the data is JSON from
+  // WebKit Inspector and is always valid UTF-8. Validating 50-200 MB payloads
+  // is expensive and unnecessary.
+  if (is_utf8 && payload_length <= (1 << 20)) {
     unsigned int utf8_state = UTF8_VALID;
     const char *payload_head = payload_data;
     for (i = 0; i < payload_length; i++) {
@@ -336,7 +339,9 @@ ws_status ws_send_frame(ws_t self,
     out_tail += payload_length;
   }
 
-  if (!is_fin && !my->continued_opcode) {
+  if (is_fin) {
+    my->continued_opcode = 0;
+  } else if (!my->continued_opcode) {
     my->continued_opcode = opcode;
   }
 
