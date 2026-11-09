@@ -41,3 +41,14 @@ ios_webkit_debug_proxy_SOURCES = ios_webkit_debug_proxy_main.c \
     websocket.c websocket.h
 ios_webkit_debug_proxy_CFLAGS = $(AM_CFLAGS)
 ios_webkit_debug_proxy_LDFLAGS = $(AM_LDFLAGS)
+
+check_PROGRAMS = websocket_test
+TESTS = websocket_test
+websocket_test_SOURCES = websocket_test.c \
+    base64.c base64.h \
+    char_buffer.c char_buffer.h \
+    sha1.c sha1.h \
+    validate_utf8.h \
+    websocket.c websocket.h
+websocket_test_CFLAGS = $(AM_CFLAGS)
+websocket_test_LDFLAGS =

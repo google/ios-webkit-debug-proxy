@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -21,6 +22,10 @@
 #include "validate_utf8.h"
 #include "strndup.h"
 #include "strcasestr.h"
+
+// Cap single-frame and accumulated fragmented-message payloads (64 MiB).
+#define WS_MAX_FRAME_PAYLOAD ((size_t)64 << 20)
+#define WS_MAX_MESSAGE_PAYLOAD ((size_t)64 << 20)
 
 typedef int8_t ws_state;
 #define STATE_ERROR 1
@@ -54,7 +59,8 @@ struct ws_private {
   size_t needed_length;
   size_t frame_length;
 
-  uint8_t continued_opcode;
+  uint8_t send_continued_opcode;
+  uint8_t recv_continued_opcode;
   bool sent_close;
 };
 
@@ -271,38 +277,25 @@ ws_status ws_send_frame(ws_t self,
   }
 
   uint8_t opcode2 = opcode;
-  if (!is_control && my->continued_opcode) {
-    if (my->continued_opcode != opcode) {
+  if (!is_control && my->send_continued_opcode) {
+    if (my->send_continued_opcode != opcode) {
       return self->on_error(self, "Expecting continue of 0x%x not 0x%x",
-          my->continued_opcode, opcode);
+          my->send_continued_opcode, opcode);
     }
     opcode2 = OPCODE_CONTINUATION;
   }
 
   size_t i;
-  bool is_utf8 = (opcode2 == OPCODE_TEXT ? true : false);
-  // Skip UTF-8 validation for large payloads (>1 MB) — the data is JSON from
-  // WebKit Inspector and is always valid UTF-8. Validating 50-200 MB payloads
-  // is expensive and unnecessary.
-  if (is_utf8 && payload_length <= (1 << 20)) {
-    unsigned int utf8_state = UTF8_VALID;
-    const char *payload_head = payload_data;
-    for (i = 0; i < payload_length; i++) {
-      unsigned char ch = *payload_head++;
-      utf8_state = validate_utf8[utf8_state + ch];
-      if (utf8_state == UTF8_INVALID) {
-        return self->on_error(self,
-            "Invalid %sUTF8 character 0x%x at %zd",
-            (is_masking ? "masked " :""), ch,
-            payload_head-1 - payload_data);
-      }
-    }
-  }
 
   int8_t payload_n = (payload_length < 126 ? 0 :
-      payload_length < UINT16_MAX ? 2 : 8);
+      payload_length <= UINT16_MAX ? 2 : 8);
 
-  size_t needed = (2 + payload_n + (is_masking ? 4 : 0) + payload_length);
+  size_t header_length = (size_t)(2 + payload_n + (is_masking ? 4 : 0));
+  if (payload_length > SIZE_MAX - header_length) {
+    return self->on_error(self, "Payload %zu exceeds buffer capacity",
+        payload_length);
+  }
+  size_t needed = header_length + payload_length;
   cb_clear(my->out);
   if (cb_ensure_capacity(my->out, needed)) {
     return self->on_error(self, "Out of memory");
@@ -339,17 +332,20 @@ ws_status ws_send_frame(ws_t self,
     out_tail += payload_length;
   }
 
-  if (is_fin) {
-    my->continued_opcode = 0;
-  } else if (!my->continued_opcode) {
-    my->continued_opcode = opcode;
-  }
-
   size_t out_length = out_tail - my->out->tail;
   ws_on_debug(self, "ws.sending_frame", my->out->tail, out_length);
   ws_status ret = self->send_data(self, my->out->tail, out_length);
-  if (!ret && opcode == OPCODE_CLOSE) {
-    my->sent_close = true;
+  if (!ret) {
+    if (opcode == OPCODE_CLOSE) {
+      my->sent_close = true;
+    }
+    if (!is_control) {
+      if (is_fin) {
+        my->send_continued_opcode = 0;
+      } else if (!my->send_continued_opcode) {
+        my->send_continued_opcode = opcode;
+      }
+    }
   }
   my->out->tail = out_tail;
   return ret;
@@ -520,40 +516,65 @@ ws_status ws_read_frame_length(ws_t self) {
     return self->on_error(self, "Control 0x%x not fin", opcode);
   }
   if (opcode == OPCODE_CONTINUATION) {
-    if (!my->continued_opcode) {
+    if (!my->recv_continued_opcode) {
       return self->on_error(self, "Continue but prev was fin");
     }
-  } else if (!is_control && my->continued_opcode) {
+  } else if (!is_control && my->recv_continued_opcode) {
     return self->on_error(self,
         "Expecting continue (of 0x%x), not 0x%x",
-        my->continued_opcode, opcode);
+        my->recv_continued_opcode, opcode);
   }
   in_head++;
 
   bool is_masking = ((*in_head & 0x80) ? true : false);
-  size_t payload_length = (*in_head & 0x7f);
-  if (is_control && payload_length > 125) {
+  uint64_t ext_length = (*in_head & 0x7f);
+  if (is_control && ext_length > 125) {
     return self->on_error(self,
-        "Control 0x%x payload_length %zd > 125",
-        opcode, payload_length);
+        "Control 0x%x payload_length %llu > 125",
+        opcode, (unsigned long long)ext_length);
   }
   in_head++;
 
-  uint8_t payload_n = (payload_length < 126 ? 0 :
-      payload_length < 127 ? 2 : 8);
+  uint8_t payload_n = (ext_length < 126 ? 0 :
+      ext_length < 127 ? 2 : 8);
   if (in_length < 2 + payload_n) {
     my->needed_length = 2 + payload_n;
     return WS_SUCCESS;
   }
   if (payload_n > 0) {
     uint8_t j;
-    payload_length = 0;
+    ext_length = 0;
     for (j = 0; j < payload_n; j++) {
-      payload_length <<= 8;
-      payload_length |= (unsigned char)*in_head++;
+      ext_length = (ext_length << 8) | (unsigned char)*in_head++;
+    }
+    // RFC 6455 section 5.2: the most significant bit MUST be 0.
+    if (payload_n == 8 && (ext_length >> 63)) {
+      return self->on_error(self,
+          "Invalid 64-bit payload_length with MSB set");
     }
   }
-  my->frame_length = 2 + payload_n + (is_masking ? 4 : 0) + payload_length;
+  if (ext_length > WS_MAX_FRAME_PAYLOAD) {
+    return self->on_error(self,
+        "Payload length %llu exceeds limit %zu",
+        (unsigned long long)ext_length, WS_MAX_FRAME_PAYLOAD);
+  }
+  size_t header_length = (size_t)(2 + payload_n + (is_masking ? 4 : 0));
+  size_t payload_length = (size_t)ext_length;
+  if (payload_length > SIZE_MAX - header_length) {
+    return self->on_error(self,
+        "Frame length overflow for payload %zu", payload_length);
+  }
+  if (!is_control) {
+    size_t data_used = (my->data->head ?
+        (size_t)(my->data->tail - my->data->head) : 0);
+    if (data_used > WS_MAX_MESSAGE_PAYLOAD ||
+        payload_length > WS_MAX_MESSAGE_PAYLOAD - data_used) {
+      return self->on_error(self,
+          "Accumulated payload %zu + %zu exceeds limit %zu",
+          data_used, payload_length, WS_MAX_MESSAGE_PAYLOAD);
+    }
+  }
+  my->frame_length = header_length + payload_length;
 
   // don't advance my->in->in_head yet
   return WS_SUCCESS;
@@ -579,7 +600,7 @@ ws_status ws_read_frame(ws_t self,
   //bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
 
   bool is_continue = (opcode == OPCODE_CONTINUATION ? true : false);
-  uint8_t opcode2 = (is_continue ? my->continued_opcode : opcode);
+  uint8_t opcode2 = (is_continue ? my->recv_continued_opcode : opcode);
   in_head++;
 
   bool is_masking = ((*in_head & 0x80) ? true : false);
@@ -587,19 +608,24 @@ ws_status ws_read_frame(ws_t self,
   in_head++;
 
   int payload_n = (payload_length < 126 ? 0 : payload_length < 127 ? 2 : 8);
+  size_t header_length = (size_t)(2 + (is_masking ? 4 : 0) + payload_n);
+  if (frame_length < header_length) {
+    return self->on_error(self, "Invalid frame length %zu < %zu",
+        frame_length, header_length);
+  }
   if (payload_n > 0) {
-    payload_length = frame_length - (2 + (is_masking ? 4 : 0) + payload_n);
+    payload_length = frame_length - header_length;
     in_head += payload_n;
   }
 
   // the "on_frame" callback will assert (is_masking == is_client)
   size_t i;
+  bool mask_nonzero = false;
   unsigned char mask[4];
   if (is_masking) {
-    is_masking = false;
     for (i = 0; i < 4; i++) {
       if (*in_head) {
-        is_masking = true;
+        mask_nonzero = true;
       }
       mask[i] = *in_head++;
     }
@@ -613,32 +639,36 @@ ws_status ws_read_frame(ws_t self,
 
   // no extension, so no extension data
 
-  if (is_masking) {
+  if (mask_nonzero) {
     uint32_t mask_offset = 0;
     for (i = 0; i < payload_length; i++) {
       unsigned char ch = *in_head++;
       ch = (ch ^ mask[mask_offset++ & 3]);
       *data_tail++ = ch;
     }
-  } else {
+  } else if (payload_length > 0) {
     memcpy(data_tail, in_head, payload_length);
     data_tail += payload_length;
+    in_head += payload_length;
   }
   my->in->in_head = in_head;
 
-  bool is_utf8 = (opcode2 == OPCODE_TEXT ? true : false);
-  if (is_utf8) {
+  if (is_fin && opcode2 == OPCODE_TEXT) {
     unsigned int utf8_state = UTF8_VALID;
-    char *dt = my->data->tail;
-    for (i = 0; i < payload_length; i++) {
-      unsigned char ch = *dt++;
+    const char *p = my->data->head;
+    while (p < data_tail) {
+      unsigned char ch = *p++;
       utf8_state = validate_utf8[utf8_state + ch];
       if (utf8_state == UTF8_INVALID) {
         return self->on_error(self,
             "Invalid %sUTF8 character 0x%x at %zd",
-            (is_masking ? "masked " :""), ch,
-            dt-1 - my->data->tail);
+            (is_masking ? "masked " : ""), ch, p - 1 - my->data->head);
       }
+    }
+    if (utf8_state != UTF8_VALID) {
+      return self->on_error(self,
+          "Incomplete %sUTF8 character at end of message",
+          (is_masking ? "masked " : ""));
     }
   }
 
@@ -721,6 +751,9 @@ ws_state ws_recv_frame(ws_t self) {
     return -1;
   }
 
+  size_t prev_data_len = (my->data->head ?
+      (size_t)(my->data->tail - my->data->head) : 0);
+
   bool is_fin;
   uint8_t opcode;
   bool is_masking;
@@ -728,20 +761,33 @@ ws_state ws_recv_frame(ws_t self) {
     return STATE_ERROR;
   }
 
+  bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
+  const char *frame_data = (my->data->head ?
+      my->data->head + (is_control ? prev_data_len : 0) : NULL);
+  size_t frame_data_len = (my->data->head ?
+      (size_t)(my->data->tail - my->data->head) -
+          (is_control ? prev_data_len : 0) :
+      0);
+
   bool should_keep = 1;
   if (self->on_frame(self, is_fin, opcode, is_masking,
-        my->data->begin, my->data->tail - my->data->begin,
-        &should_keep)) {
+        frame_data, frame_data_len, &should_keep)) {
     return STATE_ERROR;
   }
-  if (is_fin || !should_keep) {
-    cb_clear(my->data);
-  }
+  if (is_control) {
+    if (my->data->head) {
+      my->data->tail = my->data->head + prev_data_len;
+    }
+  } else {
+    if (is_fin || !should_keep) {
+      cb_clear(my->data);
+    }
 
-  if (is_fin) {
-    my->continued_opcode = 0;
-  } else if (opcode != OPCODE_CONTINUATION) {
-    my->continued_opcode = opcode;
+    if (is_fin) {
+      my->recv_continued_opcode = 0;
+    } else if (opcode != OPCODE_CONTINUATION) {
+      my->recv_continued_opcode = opcode;
+    }
   }
 
   if (opcode == OPCODE_CLOSE) {

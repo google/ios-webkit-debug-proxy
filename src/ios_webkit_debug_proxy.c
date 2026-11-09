@@ -775,7 +775,8 @@ ws_status iwdp_on_devtools_request(ws_t ws, const char *resource) {
      (iwdp_ipage_t)ht_get_value(iwi->page_num_to_ipage,
        HT_KEY(page_num)) : NULL);
   if (!p) {
-    return iwdp_on_not_found(ws, false, resource, "Unknown page id");
+    iwdp_on_not_found(ws, false, resource, "Unknown page id");
+    return WS_ERROR;
   }
   return iwdp_start_devtools(p, iws);
 }
@@ -1058,6 +1059,8 @@ ws_status iwdp_on_http_request(ws_t ws,
     if (is_get && !strncmp(resource, "/devtools/page/", 15)) {
       return iwdp_on_devtools_request(ws, resource);
     }
+    iwdp_on_not_found(ws, is_head, resource, NULL);
+    return WS_ERROR;
   } else {
     if (!is_get && !is_head) {
       return iwdp_on_not_found(ws, is_head, resource, "Method Not Allowed");
@@ -1417,7 +1420,7 @@ rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
 
 // Maximum WebSocket frame payload before splitting into continuation frames.
 // 1 MB chunks reduce peak memory vs. buffering the entire payload at once.
-#define WS_MAX_FRAME_PAYLOAD (1 << 20)
+#define IWDP_CONTINUATION_CHUNK_SIZE (1 << 20)
 
 rpc_status iwdp_on_applicationSentData(rpc_t rpc,
     const char *app_id, const char *dest_id,
@@ -1429,7 +1432,7 @@ rpc_status iwdp_on_applicationSentData(rpc_t rpc,
   }
   ws_t ws = iws->ws;
   // Small messages: send as a single frame (fast path).
-  if (length <= WS_MAX_FRAME_PAYLOAD) {
+  if (length <= IWDP_CONTINUATION_CHUNK_SIZE) {
     return ws->send_frame(ws,
         true, OPCODE_TEXT, false,
         data, length);
@@ -1441,8 +1444,8 @@ rpc_status iwdp_on_applicationSentData(rpc_t rpc,
   size_t offset = 0;
   while (offset < length) {
     size_t chunk = length - offset;
-    if (chunk > WS_MAX_FRAME_PAYLOAD) {
-      chunk = WS_MAX_FRAME_PAYLOAD;
+    if (chunk > IWDP_CONTINUATION_CHUNK_SIZE) {
+      chunk = IWDP_CONTINUATION_CHUNK_SIZE;
     }
     bool is_last = (offset + chunk >= length);
     ws_status ret = ws->send_frame(ws,
@@ -1998,7 +2001,7 @@ iwdp_status iwdp_get_content_type(const char *path, bool is_local,
 #endif
   }
   if (!mime) {
-    char *fext = strrchr(path, '.');
+    const char *fext = strrchr(path, '.');
     if (fext) {
       ++fext;
       size_t n = (sizeof(EXT_TO_MIME) / sizeof(EXT_TO_MIME[0]));

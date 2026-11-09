@@ -9,6 +9,10 @@ examples/dl_client
 examples/wi_client
 examples/ws_echo1
 examples/ws_echo2
+src/websocket_test
+src/*.log
+src/*.trs
+test-driver
 *.exe
 
 # OS generated files

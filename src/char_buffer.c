@@ -6,6 +6,7 @@
 #endif
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,9 +68,15 @@ int cb_ensure_capacity(cb_t self, size_t needed) {
     }
     if (needed > avail) {
       size_t length = self->end - self->begin;
+      if (needed > SIZE_MAX - used) {
+        return -1;
+      }
       size_t new_length = used + needed;
-      if (new_length < 1.5 * length) {
-        new_length = 1.5 * length;
+      size_t grown_length = (length <= SIZE_MAX - length / 2
+          ? length + length / 2
+          : SIZE_MAX);
+      if (new_length < grown_length) {
+        new_length = grown_length;
       }
       char *new_begin = (char*)realloc(self->begin,
           new_length * sizeof(char));
