@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -21,6 +22,10 @@
 #include "validate_utf8.h"
 #include "strndup.h"
 #include "strcasestr.h"
+
+// Cap single-frame and accumulated fragmented-message payloads (64 MiB).
+#define WS_MAX_FRAME_PAYLOAD ((size_t)64 << 20)
+#define WS_MAX_MESSAGE_PAYLOAD ((size_t)64 << 20)
 
 typedef int8_t ws_state;
 #define STATE_ERROR 1
@@ -302,7 +307,12 @@ ws_status ws_send_frame(ws_t self,
   int8_t payload_n = (payload_length < 126 ? 0 :
       payload_length < UINT16_MAX ? 2 : 8);
 
-  size_t needed = (2 + payload_n + (is_masking ? 4 : 0) + payload_length);
+  size_t header_length = (size_t)(2 + payload_n + (is_masking ? 4 : 0));
+  if (payload_length > SIZE_MAX - header_length) {
+    return self->on_error(self, "Payload %zu exceeds buffer capacity",
+        payload_length);
+  }
+  size_t needed = header_length + payload_length;
   cb_clear(my->out);
   if (cb_ensure_capacity(my->out, needed)) {
     return self->on_error(self, "Out of memory");
@@ -531,29 +541,54 @@ ws_status ws_read_frame_length(ws_t self) {
   in_head++;
 
   bool is_masking = ((*in_head & 0x80) ? true : false);
-  size_t payload_length = (*in_head & 0x7f);
-  if (is_control && payload_length > 125) {
+  uint64_t ext_length = (*in_head & 0x7f);
+  if (is_control && ext_length > 125) {
     return self->on_error(self,
-        "Control 0x%x payload_length %zd > 125",
-        opcode, payload_length);
+        "Control 0x%x payload_length %llu > 125",
+        opcode, (unsigned long long)ext_length);
   }
   in_head++;
 
-  uint8_t payload_n = (payload_length < 126 ? 0 :
-      payload_length < 127 ? 2 : 8);
+  uint8_t payload_n = (ext_length < 126 ? 0 :
+      ext_length < 127 ? 2 : 8);
   if (in_length < 2 + payload_n) {
     my->needed_length = 2 + payload_n;
     return WS_SUCCESS;
   }
   if (payload_n > 0) {
     uint8_t j;
-    payload_length = 0;
+    ext_length = 0;
     for (j = 0; j < payload_n; j++) {
-      payload_length <<= 8;
-      payload_length |= (unsigned char)*in_head++;
+      ext_length = (ext_length << 8) | (unsigned char)*in_head++;
+    }
+    // RFC 6455 section 5.2: the most significant bit MUST be 0.
+    if (payload_n == 8 && (ext_length >> 63)) {
+      return self->on_error(self,
+          "Invalid 64-bit payload_length with MSB set");
     }
   }
-  my->frame_length = 2 + payload_n + (is_masking ? 4 : 0) + payload_length;
+  if (ext_length > WS_MAX_FRAME_PAYLOAD) {
+    return self->on_error(self,
+        "Payload length %llu exceeds limit %zu",
+        (unsigned long long)ext_length, WS_MAX_FRAME_PAYLOAD);
+  }
+  size_t header_length = (size_t)(2 + payload_n + (is_masking ? 4 : 0));
+  size_t payload_length = (size_t)ext_length;
+  if (payload_length > SIZE_MAX - header_length) {
+    return self->on_error(self,
+        "Frame length overflow for payload %zu", payload_length);
+  }
+  if (!is_control) {
+    size_t data_used = (my->data->head ?
+        (size_t)(my->data->tail - my->data->head) : 0);
+    if (data_used > WS_MAX_MESSAGE_PAYLOAD ||
+        payload_length > WS_MAX_MESSAGE_PAYLOAD - data_used) {
+      return self->on_error(self,
+          "Accumulated payload %zu + %zu exceeds limit %zu",
+          data_used, payload_length, WS_MAX_MESSAGE_PAYLOAD);
+    }
+  }
+  my->frame_length = header_length + payload_length;
 
   // don't advance my->in->in_head yet
   return WS_SUCCESS;
@@ -587,8 +622,13 @@ ws_status ws_read_frame(ws_t self,
   in_head++;
 
   int payload_n = (payload_length < 126 ? 0 : payload_length < 127 ? 2 : 8);
+  size_t header_length = (size_t)(2 + (is_masking ? 4 : 0) + payload_n);
+  if (frame_length < header_length) {
+    return self->on_error(self, "Invalid frame length %zu < %zu",
+        frame_length, header_length);
+  }
   if (payload_n > 0) {
-    payload_length = frame_length - (2 + (is_masking ? 4 : 0) + payload_n);
+    payload_length = frame_length - header_length;
     in_head += payload_n;
   }
 

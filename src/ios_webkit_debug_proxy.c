@@ -775,7 +775,8 @@ ws_status iwdp_on_devtools_request(ws_t ws, const char *resource) {
      (iwdp_ipage_t)ht_get_value(iwi->page_num_to_ipage,
        HT_KEY(page_num)) : NULL);
   if (!p) {
-    return iwdp_on_not_found(ws, false, resource, "Unknown page id");
+    iwdp_on_not_found(ws, false, resource, "Unknown page id");
+    return WS_ERROR;
   }
   return iwdp_start_devtools(p, iws);
 }
@@ -1058,6 +1059,8 @@ ws_status iwdp_on_http_request(ws_t ws,
     if (is_get && !strncmp(resource, "/devtools/page/", 15)) {
       return iwdp_on_devtools_request(ws, resource);
     }
+    iwdp_on_not_found(ws, is_head, resource, NULL);
+    return WS_ERROR;
   } else {
     if (!is_get && !is_head) {
       return iwdp_on_not_found(ws, is_head, resource, "Method Not Allowed");
@@ -1998,7 +2001,7 @@ iwdp_status iwdp_get_content_type(const char *path, bool is_local,
 #endif
   }
   if (!mime) {
-    char *fext = strrchr(path, '.');
+    const char *fext = strrchr(path, '.');
     if (fext) {
       ++fext;
       size_t n = (sizeof(EXT_TO_MIME) / sizeof(EXT_TO_MIME[0]));
