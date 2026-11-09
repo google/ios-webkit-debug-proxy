@@ -59,7 +59,8 @@ struct ws_private {
   size_t needed_length;
   size_t frame_length;
 
-  uint8_t continued_opcode;
+  uint8_t send_continued_opcode;
+  uint8_t recv_continued_opcode;
   bool sent_close;
 };
 
@@ -276,10 +277,10 @@ ws_status ws_send_frame(ws_t self,
   }
 
   uint8_t opcode2 = opcode;
-  if (!is_control && my->continued_opcode) {
-    if (my->continued_opcode != opcode) {
+  if (!is_control && my->send_continued_opcode) {
+    if (my->send_continued_opcode != opcode) {
       return self->on_error(self, "Expecting continue of 0x%x not 0x%x",
-          my->continued_opcode, opcode);
+          my->send_continued_opcode, opcode);
     }
     opcode2 = OPCODE_CONTINUATION;
   }
@@ -305,7 +306,7 @@ ws_status ws_send_frame(ws_t self,
   }
 
   int8_t payload_n = (payload_length < 126 ? 0 :
-      payload_length < UINT16_MAX ? 2 : 8);
+      payload_length <= UINT16_MAX ? 2 : 8);
 
   size_t header_length = (size_t)(2 + payload_n + (is_masking ? 4 : 0));
   if (payload_length > SIZE_MAX - header_length) {
@@ -349,17 +350,20 @@ ws_status ws_send_frame(ws_t self,
     out_tail += payload_length;
   }
 
-  if (is_fin) {
-    my->continued_opcode = 0;
-  } else if (!my->continued_opcode) {
-    my->continued_opcode = opcode;
-  }
-
   size_t out_length = out_tail - my->out->tail;
   ws_on_debug(self, "ws.sending_frame", my->out->tail, out_length);
   ws_status ret = self->send_data(self, my->out->tail, out_length);
-  if (!ret && opcode == OPCODE_CLOSE) {
-    my->sent_close = true;
+  if (!ret) {
+    if (opcode == OPCODE_CLOSE) {
+      my->sent_close = true;
+    }
+    if (!is_control) {
+      if (is_fin) {
+        my->send_continued_opcode = 0;
+      } else if (!my->send_continued_opcode) {
+        my->send_continued_opcode = opcode;
+      }
+    }
   }
   my->out->tail = out_tail;
   return ret;
@@ -530,13 +534,13 @@ ws_status ws_read_frame_length(ws_t self) {
     return self->on_error(self, "Control 0x%x not fin", opcode);
   }
   if (opcode == OPCODE_CONTINUATION) {
-    if (!my->continued_opcode) {
+    if (!my->recv_continued_opcode) {
       return self->on_error(self, "Continue but prev was fin");
     }
-  } else if (!is_control && my->continued_opcode) {
+  } else if (!is_control && my->recv_continued_opcode) {
     return self->on_error(self,
         "Expecting continue (of 0x%x), not 0x%x",
-        my->continued_opcode, opcode);
+        my->recv_continued_opcode, opcode);
   }
   in_head++;
 
@@ -614,7 +618,7 @@ ws_status ws_read_frame(ws_t self,
   //bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
 
   bool is_continue = (opcode == OPCODE_CONTINUATION ? true : false);
-  uint8_t opcode2 = (is_continue ? my->continued_opcode : opcode);
+  uint8_t opcode2 = (is_continue ? my->recv_continued_opcode : opcode);
   in_head++;
 
   bool is_masking = ((*in_head & 0x80) ? true : false);
@@ -634,12 +638,12 @@ ws_status ws_read_frame(ws_t self,
 
   // the "on_frame" callback will assert (is_masking == is_client)
   size_t i;
+  bool mask_nonzero = false;
   unsigned char mask[4];
   if (is_masking) {
-    is_masking = false;
     for (i = 0; i < 4; i++) {
       if (*in_head) {
-        is_masking = true;
+        mask_nonzero = true;
       }
       mask[i] = *in_head++;
     }
@@ -653,16 +657,17 @@ ws_status ws_read_frame(ws_t self,
 
   // no extension, so no extension data
 
-  if (is_masking) {
+  if (mask_nonzero) {
     uint32_t mask_offset = 0;
     for (i = 0; i < payload_length; i++) {
       unsigned char ch = *in_head++;
       ch = (ch ^ mask[mask_offset++ & 3]);
       *data_tail++ = ch;
     }
-  } else {
+  } else if (payload_length > 0) {
     memcpy(data_tail, in_head, payload_length);
     data_tail += payload_length;
+    in_head += payload_length;
   }
   my->in->in_head = in_head;
 
@@ -761,6 +766,9 @@ ws_state ws_recv_frame(ws_t self) {
     return -1;
   }
 
+  size_t prev_data_len = (my->data->head ?
+      (size_t)(my->data->tail - my->data->head) : 0);
+
   bool is_fin;
   uint8_t opcode;
   bool is_masking;
@@ -768,20 +776,33 @@ ws_state ws_recv_frame(ws_t self) {
     return STATE_ERROR;
   }
 
+  bool is_control = (opcode >= OPCODE_CLOSE ? true : false);
+  const char *frame_data = (my->data->head ?
+      my->data->head + (is_control ? prev_data_len : 0) : NULL);
+  size_t frame_data_len = (my->data->head ?
+      (size_t)(my->data->tail - my->data->head) -
+          (is_control ? prev_data_len : 0) :
+      0);
+
   bool should_keep = 1;
   if (self->on_frame(self, is_fin, opcode, is_masking,
-        my->data->begin, my->data->tail - my->data->begin,
-        &should_keep)) {
+        frame_data, frame_data_len, &should_keep)) {
     return STATE_ERROR;
   }
-  if (is_fin || !should_keep) {
-    cb_clear(my->data);
-  }
+  if (is_control) {
+    if (my->data->head) {
+      my->data->tail = my->data->head + prev_data_len;
+    }
+  } else {
+    if (is_fin || !should_keep) {
+      cb_clear(my->data);
+    }
 
-  if (is_fin) {
-    my->continued_opcode = 0;
-  } else if (opcode != OPCODE_CONTINUATION) {
-    my->continued_opcode = opcode;
+    if (is_fin) {
+      my->recv_continued_opcode = 0;
+    } else if (opcode != OPCODE_CONTINUATION) {
+      my->recv_continued_opcode = opcode;
+    }
   }
 
   if (opcode == OPCODE_CLOSE) {

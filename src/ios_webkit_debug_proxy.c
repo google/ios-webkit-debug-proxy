@@ -1420,7 +1420,7 @@ rpc_status iwdp_on_applicationSentListing(rpc_t rpc,
 
 // Maximum WebSocket frame payload before splitting into continuation frames.
 // 1 MB chunks reduce peak memory vs. buffering the entire payload at once.
-#define WS_MAX_FRAME_PAYLOAD (1 << 20)
+#define IWDP_CONTINUATION_CHUNK_SIZE (1 << 20)
 
 rpc_status iwdp_on_applicationSentData(rpc_t rpc,
     const char *app_id, const char *dest_id,
@@ -1432,7 +1432,7 @@ rpc_status iwdp_on_applicationSentData(rpc_t rpc,
   }
   ws_t ws = iws->ws;
   // Small messages: send as a single frame (fast path).
-  if (length <= WS_MAX_FRAME_PAYLOAD) {
+  if (length <= IWDP_CONTINUATION_CHUNK_SIZE) {
     return ws->send_frame(ws,
         true, OPCODE_TEXT, false,
         data, length);
@@ -1444,8 +1444,8 @@ rpc_status iwdp_on_applicationSentData(rpc_t rpc,
   size_t offset = 0;
   while (offset < length) {
     size_t chunk = length - offset;
-    if (chunk > WS_MAX_FRAME_PAYLOAD) {
-      chunk = WS_MAX_FRAME_PAYLOAD;
+    if (chunk > IWDP_CONTINUATION_CHUNK_SIZE) {
+      chunk = IWDP_CONTINUATION_CHUNK_SIZE;
     }
     bool is_last = (offset + chunk >= length);
     ws_status ret = ws->send_frame(ws,
