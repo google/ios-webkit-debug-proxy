@@ -69,6 +69,11 @@ case ${host_os} in
     AC_MSG_RESULT([yes])
     AC_DEFINE(WIN32_LEAN_AND_MEAN, 1, [Define to limit the scope of windows.h])
     AC_DEFINE(__USE_MINGW_ANSI_STDIO, 1, [Define to use C99 printf/snprintf in MinGW])
+    case ${host_os} in
+      *mingw*|*msys*)
+        LIBS="$LIBS -lws2_32"
+        ;;
+    esac
     ;;
   *)
     win32=false
