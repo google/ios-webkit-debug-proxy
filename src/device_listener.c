@@ -18,6 +18,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #else
+#include <netdb.h>
 #include <resolv.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
@@ -89,22 +90,106 @@ int dl_connect(int recv_timeout) {
     }
   }
 #else
+  // libusbmuxd lets USBMUXD_SOCKET_ADDRESS point the idevice_* tools at a
+  // usbmuxd on another machine.  This listener opens the socket itself rather
+  // than going through libusbmuxd (see above), so it has to read the variable
+  // too; otherwise the proxy reports "No device found" on a host where
+  // idevice_id lists the device.  The parsing mirrors libusbmuxd's
+  // connect_usbmuxd_socket(), including its fallback to the local socket when
+  // the address is not usable.
   const char *filename = USBMUXD_FILE_PATH;
-  struct stat fst;
-  if (stat(filename, &fst) ||
-      !S_ISSOCK(fst.st_mode) ||
-      (fd = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
-    return -1;
+  const char *socket_addr = getenv("USBMUXD_SOCKET_ADDRESS");
+
+  fd = -1;
+  if (socket_addr && !strncmp(socket_addr, "UNIX:", 5)) {
+    if (socket_addr[5]) {
+      filename = socket_addr + 5;
+    }
+  } else if (socket_addr) {
+    const char *colon = strrchr(socket_addr, ':');
+    const char *host_start = socket_addr;
+    const char *host_end = colon;
+    long port = 0;
+    size_t host_len = 0;
+
+    if (colon) {
+      char *endp = NULL;
+      port = strtol(colon + 1, &endp, 10);
+      if (!endp || *endp || port <= 0 || port > 65535) {
+        port = 0;
+      }
+      if (*socket_addr == '[') {
+        host_start = socket_addr + 1;
+        while (host_end > host_start && host_end[-1] != ']') {
+          host_end--;
+        }
+        if (host_end > host_start) {
+          host_end--;
+        }
+      }
+      if (port > 0) {
+        host_len = (size_t)(host_end - host_start);
+      }
+    }
+
+    if (host_len > 0 && host_len < NI_MAXHOST) {
+      char host[NI_MAXHOST];
+      char service[6];
+      struct addrinfo hints;
+      struct addrinfo *results = NULL;
+      struct addrinfo *it = NULL;
+      int err;
+
+      memcpy(host, host_start, host_len);
+      host[host_len] = '\0';
+      snprintf(service, sizeof(service), "%ld", port);
+
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_socktype = SOCK_STREAM;
+
+      err = getaddrinfo(host, service, &hints, &results);
+      if (err) {
+        fprintf(stderr, "device_listener: could not resolve \"%s\": %s\n",
+                socket_addr, gai_strerror(err));
+        return -1;
+      }
+      for (it = results; it; it = it->ai_next) {
+        fd = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+        if (fd < 0) {
+          continue;
+        }
+        if (!connect(fd, it->ai_addr, it->ai_addrlen)) {
+          break;
+        }
+        close(fd);
+        fd = -1;
+      }
+      freeaddrinfo(results);
+      if (fd < 0) {
+        perror("Could not connect to remote usbmuxd");
+        return -1;
+      }
+    }
   }
 
-  struct sockaddr_un name;
-  name.sun_family = AF_LOCAL;
-  strncpy(name.sun_path, filename, sizeof(name.sun_path));
-  name.sun_path[sizeof(name.sun_path) - 1] = 0;
-  size_t size = SUN_LEN(&name);
-  if (connect(fd, (struct sockaddr *)&name, size) < 0) {
-    close(fd);
-    return -1;
+  if (fd < 0) {
+    struct stat fst;
+    if (stat(filename, &fst) ||
+        !S_ISSOCK(fst.st_mode) ||
+        (fd = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+      return -1;
+    }
+
+    struct sockaddr_un name;
+    name.sun_family = AF_LOCAL;
+    strncpy(name.sun_path, filename, sizeof(name.sun_path));
+    name.sun_path[sizeof(name.sun_path) - 1] = 0;
+    size_t size = SUN_LEN(&name);
+    if (connect(fd, (struct sockaddr *)&name, size) < 0) {
+      close(fd);
+      return -1;
+    }
   }
 
   if (recv_timeout < 0) {
