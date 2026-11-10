@@ -1098,8 +1098,8 @@ ws_status iwdp_on_frame(ws_t ws,
     case OPCODE_TEXT:
     case OPCODE_BINARY:
       if (!is_masking) {
-        return ws->send_close(ws, CLOSE_PROTOCOL_ERROR,
-            "Clients must mask");
+        ws->send_close(ws, CLOSE_PROTOCOL_ERROR, "Clients must mask");
+        return WS_ERROR;
       }
       if (!is_fin) {
         // wait for full data
